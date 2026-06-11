@@ -1,0 +1,51 @@
+﻿Documento de Requisitos del Producto (PRD)
+Proyecto: Sistema de Toma de Pedidos (PWA) y Punto de Venta (POS) para Restaurante Transicional
+Versión: 2.0 (MVP Optimizado para Operación Real)
+1. Resumen del Proyecto
+Desarrollo de un sistema de gestión de pedidos y cobros diseñado para un restaurante tradicional en transición digital (actualmente operando con factureros de papel). El sistema se basará en una arquitectura web progresiva (PWA) para garantizar su funcionamiento en un local de 3 terrazas con conectividad intermitente. La operatividad en cocina se mantendrá verbal, por lo que el sistema se enfocará exclusivamente en la comunicación segura entre el Mesero y la Caja, eliminando fugas de dinero, agilizando el cobro y controlando la caja chica diaria.
+2. Roles de Usuario
+1. Mesero: Toma de pedidos desde dispositivo móvil personal (PWA).
+2. Cajero: Gestión de cobros, mesas unidas/divididas, caja chica y ventas directas (PC/Tablet).
+3. Administrador: Configuración del menú, disponibilidad rápida y reportes.
+3. Requisitos Funcionales por Módulo
+### Módulo de Meseros (Interfaz Móvil - App Web / PWA)
+Autenticación:
+• Acceso rápido mediante un PIN personal de 4 dígitos.
+Gestión de Mesas:
+• Vista de mapa o listado con estados por colores (Libres, Ocupadas, Pendientes de Pago).
+• Visibilidad del nombre del mesero asignado a cada mesa ocupada.
+Toma de Pedidos (Estado "Pendiente"):
+• Navegación por categorías y adición de productos con notas personalizadas (ej. "sin ensalada").
+• Mientras el pedido está en estado "P ni endiente" (no enviado), el mesero tiene libertad total de agregar, editar o eliminar productos.
+Seguridad y Envío (Anti-Fraude y Anti-Error):
+• Bloqueo Visual de Envío: Al presionar "Enviar a Caja", el botón debe cambiar a gris, bloquearse inmediatamente y mostrar el texto "Enviando... ⏳" para evitar pedidos duplicados por toques múltiples.
+• Bloqueo de Eliminación (Candado 🔒): Una vez que el pedido se envía a la caja y se sincroniza, los productos enviados quedan bloqueados en la interfaz del mesero. No podrá eliminarlos. Cualquier cancelación deberá solicitarla verbalmente al cajero.
+• Actualización de mesas: El mesero puede agregar nuevos productos a una mesa ya enviada y volver a sincronizar.
+Resiliencia Offline (Modo "Sin Conexión"):
+• Si el mesero está en una terraza sin señal en el momento de enviar, la PWA debe guardar el pedido localmente, mostrar un aviso ("Guardado en el celular, esperando conexión") y enviarlo automáticamente a la caja en cuanto el celular recupere la red.
+### Módulo de Caja (Interfaz Tablet/Escritorio)
+Recepción y Control de Mesas:
+• Notificaciones visuales/sonoras de pedidos nuevos o actualizados.
+• El cajero es el único con permisos para eliminar productos de una orden ya enviada (por error del cliente o del mesero).
+Dinámicas de Cobro Avanzadas:
+• Unir Mesas: Botón para seleccionar dos o más mesas (ej. Mesa 2 y Mesa 3) y fusionarlas en una sola cuenta unificada.
+• Dividir Cuenta: Función que permite al cajero seleccionar productos específicos de una mesa y cobrarlos por separado (ej. cobrar 2 cervezas a un cliente, dejando el resto de los platos en la mesa para el siguiente cliente).
+• Cálculo de pago en "Efectivo": Campo para ingresar el billete recibido y calcular el vuelto exacto automáticamente. Opción secundaria de pago por "Transferencia".
+• (Nota: El sistema no calculará propinas; los cobros son valores netos de consumo).
+• Emisión de recibo/ticket de control interno.
+Ventas Directas (Para Llevar):
+• Módulo rápido para registrar pedidos directos en mostrador sin asignar mesa ni mesero.
+Control de Caja Chica (Egresos):
+• Botón de "Registrar Gasto" para asentar salidas de dinero urgentes durante el turno (requiere ingresar Motivo y Monto). Este valor se restará del total en efectivo al cierre.
+Cierre de Turno:
+• Historial de facturas internas pagadas.
+• Desglose de ventas por producto (ej. "20 Hornados").
+• Cuadre de caja: Total de efectivo (menos gastos registrados) y total en transferencias.
+### Módulo de Administrador (Interfaz Escritorio)
+• Gestión de Menú (Stock Rápido): Botón de acceso rápido para marcar un producto como "Agotado", ocultándolo inmediatamente de los celulares de los meseros.
+• Gestión de Usuarios: Creación/edición de PINs y roles.
+• Dashboard de Reportes: Ventas totales diarias/mensuales y productos más vendidos.
+4. Requisitos No Funcionales (Técnicos)
+• Arquitectura Frontend: El módulo de meseros debe desarrollarse obligatoriamente como una PWA (Progressive Web App) con estrategia "Offline-First" (ej. uso de Service Workers y bases de datos locales en el navegador del celular) para mitigar los problemas de conexión en las terrazas.
+• Sincronización: Uso de WebSockets para garantizar que, cuando haya internet, las actualizaciones entre el celular y la caja ocurran en menos de 2 segundos.
+• UX/UI Móvil: Interfaz del mesero con botones grandes y alto contraste, diseñada para usarse con una sola mano y bajo la luz del sol (terrazas).
