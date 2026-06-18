@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
+import { Injectable, signal, computed, inject, effect, OnDestroy } from '@angular/core';
 import {
     Firestore, collection, collectionData, doc,
     addDoc, updateDoc, deleteDoc, setDoc, Timestamp, writeBatch
@@ -7,6 +7,7 @@ import { Subscription } from 'rxjs';
 import { Product, OrderItem, Order } from '../../shared/interfaces';
 import { TableService } from './table.service';
 import { AuthService } from '../auth/auth.service';
+import { TenantService } from './tenant.service';
 
 @Injectable({
     providedIn: 'root'
@@ -25,9 +26,10 @@ export class OrderService implements OnDestroy {
     private firestore = inject(Firestore);
     private tableService = inject(TableService);
     private authService = inject(AuthService);
+    private tenant = inject(TenantService);
 
-    private ordersSubscription: Subscription;
-    private historySubscription: Subscription;
+    private ordersSubscription?: Subscription;
+    private historySubscription?: Subscription;
 
     // Señales derivadas (computed)
     readonly items = this.currentItems.asReadonly();
@@ -42,32 +44,44 @@ export class OrderService implements OnDestroy {
     });
 
     constructor() {
-        // Suscripción a órdenes activas en tiempo real
-        const ordersRef = collection(this.firestore, 'orders');
-        this.ordersSubscription = collectionData(ordersRef, { idField: 'id' }).subscribe(
-            (data) => {
-                const orders = (data as any[]).map(o => ({
-                    ...o,
-                    fecha_creacion: o.fecha_creacion?.toDate ? o.fecha_creacion.toDate() : new Date(o.fecha_creacion),
-                    fecha_cierre: o.fecha_cierre?.toDate ? o.fecha_cierre.toDate() : (o.fecha_cierre ? new Date(o.fecha_cierre) : undefined)
-                })) as Order[];
-                console.log('Órdenes activas recibidas desde Firestore:', orders);
-                this.activeOrders.set(orders);
-            }
-        );
+        // Re-suscribe a las órdenes e historial del restaurante activo cuando cambia el tenant.
+        effect(() => {
+            const id = this.tenant.restauranteId();
+            this.ordersSubscription?.unsubscribe();
+            this.historySubscription?.unsubscribe();
 
-        // Suscripción a historial en tiempo real
-        const historyRef = collection(this.firestore, 'order_history');
-        this.historySubscription = collectionData(historyRef, { idField: 'id' }).subscribe(
-            (data) => {
-                const history = (data as any[]).map(o => ({
-                    ...o,
-                    fecha_creacion: o.fecha_creacion?.toDate ? o.fecha_creacion.toDate() : new Date(o.fecha_creacion),
-                    fecha_cierre: o.fecha_cierre?.toDate ? o.fecha_cierre.toDate() : (o.fecha_cierre ? new Date(o.fecha_cierre) : undefined)
-                })) as Order[];
-                this.orderHistory.set(history);
+            if (!id) {
+                this.activeOrders.set([]);
+                this.orderHistory.set([]);
+                return;
             }
-        );
+
+            // Suscripción a órdenes activas en tiempo real
+            const ordersRef = collection(this.firestore, `restaurants/${id}/orders`);
+            this.ordersSubscription = collectionData(ordersRef, { idField: 'id' }).subscribe(
+                (data) => {
+                    const orders = (data as any[]).map(o => ({
+                        ...o,
+                        fecha_creacion: o.fecha_creacion?.toDate ? o.fecha_creacion.toDate() : new Date(o.fecha_creacion),
+                        fecha_cierre: o.fecha_cierre?.toDate ? o.fecha_cierre.toDate() : (o.fecha_cierre ? new Date(o.fecha_cierre) : undefined)
+                    })) as Order[];
+                    this.activeOrders.set(orders);
+                }
+            );
+
+            // Suscripción a historial en tiempo real
+            const historyRef = collection(this.firestore, `restaurants/${id}/order_history`);
+            this.historySubscription = collectionData(historyRef, { idField: 'id' }).subscribe(
+                (data) => {
+                    const history = (data as any[]).map(o => ({
+                        ...o,
+                        fecha_creacion: o.fecha_creacion?.toDate ? o.fecha_creacion.toDate() : new Date(o.fecha_creacion),
+                        fecha_cierre: o.fecha_cierre?.toDate ? o.fecha_cierre.toDate() : (o.fecha_cierre ? new Date(o.fecha_cierre) : undefined)
+                    })) as Order[];
+                    this.orderHistory.set(history);
+                }
+            );
+        }, { allowSignalWrites: true });
     }
 
     ngOnDestroy(): void {
@@ -163,7 +177,7 @@ export class OrderService implements OnDestroy {
         try {
             if (existingOrder) {
                 // Actualizar orden existente en Firestore
-                const orderDoc = doc(this.firestore, 'orders', existingOrder.id);
+                const orderDoc = doc(this.firestore, this.tenant.path('orders'),existingOrder.id);
                 await updateDoc(orderDoc, {
                     items: itemsToSave,
                     estado: estadoFinal,
@@ -187,7 +201,7 @@ export class OrderService implements OnDestroy {
                     total: totalAmount,
                     fecha_creacion: Timestamp.now()
                 };
-                const ordersRef = collection(this.firestore, 'orders');
+                const ordersRef = collection(this.firestore, this.tenant.path('orders'));
                 await addDoc(ordersRef, newOrder);
             }
 
@@ -249,11 +263,11 @@ export class OrderService implements OnDestroy {
                 fecha_cierre: Timestamp.now()
             };
 
-            const historyRef = collection(this.firestore, 'order_history');
+            const historyRef = collection(this.firestore, this.tenant.path('order_history'));
             await addDoc(historyRef, closedOrder);
 
             // Eliminar de órdenes activas
-            const orderDoc = doc(this.firestore, 'orders', orderId);
+            const orderDoc = doc(this.firestore, this.tenant.path('orders'),orderId);
             await deleteDoc(orderDoc);
 
             // Liberar la mesa
@@ -275,7 +289,7 @@ export class OrderService implements OnDestroy {
             const newItems = order.items.filter((_, i) => i !== itemIndex);
             const newSubtotal = newItems.reduce((sum, item) => sum + (item.precio_unitario * item.cantidad), 0);
 
-            const orderDoc = doc(this.firestore, 'orders', orderId);
+            const orderDoc = doc(this.firestore, this.tenant.path('orders'),orderId);
             await updateDoc(orderDoc, {
                 items: newItems,
                 subtotal: newSubtotal,
@@ -314,7 +328,7 @@ export class OrderService implements OnDestroy {
 
         try {
             // Actualizar la orden principal con todos los items
-            const primaryDoc = doc(this.firestore, 'orders', primaryOrder.id);
+            const primaryDoc = doc(this.firestore, this.tenant.path('orders'),primaryOrder.id);
             await updateDoc(primaryDoc, {
                 items: mergedItems,
                 subtotal: mergedSubtotal,
@@ -323,7 +337,7 @@ export class OrderService implements OnDestroy {
 
             // Eliminar las órdenes secundarias y liberar sus mesas
             for (const order of ordersToMerge.slice(1)) {
-                const orderDoc = doc(this.firestore, 'orders', order.id);
+                const orderDoc = doc(this.firestore, this.tenant.path('orders'),order.id);
                 await deleteDoc(orderDoc);
                 await this.tableService.updateTableStatus(order.id_mesa, 'libre');
             }
@@ -369,11 +383,11 @@ export class OrderService implements OnDestroy {
                 fecha_creacion: order.fecha_creacion instanceof Date ? Timestamp.fromDate(order.fecha_creacion) : order.fecha_creacion
             };
 
-            const ordersRef = collection(this.firestore, 'orders');
+            const ordersRef = collection(this.firestore, this.tenant.path('orders'));
             const newDocRef = await addDoc(ordersRef, splitOrderData);
 
             // Actualizar la orden original
-            const originalDoc = doc(this.firestore, 'orders', orderId);
+            const originalDoc = doc(this.firestore, this.tenant.path('orders'),orderId);
             await updateDoc(originalDoc, {
                 items: remainingItems,
                 subtotal: remainingSubtotal,
@@ -419,7 +433,7 @@ export class OrderService implements OnDestroy {
         };
 
         try {
-            const ordersRef = collection(this.firestore, 'orders');
+            const ordersRef = collection(this.firestore, this.tenant.path('orders'));
             const docRef = await addDoc(ordersRef, directOrderData);
 
             return {
@@ -441,7 +455,7 @@ export class OrderService implements OnDestroy {
         try {
             const batch = writeBatch(this.firestore);
             history.forEach(order => {
-                const orderDoc = doc(this.firestore, 'order_history', order.id!);
+                const orderDoc = doc(this.firestore, this.tenant.path('order_history'),order.id!);
                 batch.delete(orderDoc);
             });
             await batch.commit();

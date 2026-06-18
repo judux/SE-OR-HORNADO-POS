@@ -2,10 +2,20 @@ import { Routes } from '@angular/router';
 import { LoginComponent } from './features/auth/login/login.component';
 import { authGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
+import { superAdminGuard } from './core/guards/super-admin.guard';
 
 export const routes: Routes = [
     { path: '', redirectTo: '/login', pathMatch: 'full' },
     { path: 'login', component: LoginComponent },
+    {
+        path: 'super-admin/login',
+        loadComponent: () => import('./features/super-admin/super-admin-login/super-admin-login.component').then(m => m.SuperAdminLoginComponent)
+    },
+    {
+        path: 'super-admin',
+        loadComponent: () => import('./features/super-admin/super-admin-dashboard/super-admin-dashboard.component').then(m => m.SuperAdminDashboardComponent),
+        canActivate: [superAdminGuard]
+    },
     {
         path: 'admin',
         loadComponent: () => import('./features/admin/admin-layout/admin-layout.component').then(m => m.AdminLayoutComponent),

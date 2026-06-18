@@ -2,6 +2,7 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { Firestore, collection, query, where, getDocs } from '@angular/fire/firestore';
 import { User } from '../../shared/interfaces';
+import { TenantService } from '../services/tenant.service';
 
 @Injectable({
     providedIn: 'root'
@@ -9,6 +10,7 @@ import { User } from '../../shared/interfaces';
 export class AuthService {
     private currentUser = signal<User | null>(null);
     private firestore = inject(Firestore);
+    private tenant = inject(TenantService);
 
     readonly user = this.currentUser.asReadonly();
     readonly isLoggedIn = computed(() => this.currentUser() !== null);
@@ -19,12 +21,18 @@ export class AuthService {
     }
 
     /**
-     * Inicia sesión buscando un usuario por su PIN en Firestore.
+     * Inicia sesión buscando un usuario por su PIN dentro del restaurante activo.
+     * Requiere que el tenant ya esté seleccionado (TenantService.setTenant).
      * Retorna el usuario si el PIN es válido, null si no.
      */
     async loginByPin(pin: string): Promise<User | null> {
         try {
-            const usersRef = collection(this.firestore, 'users');
+            if (!this.tenant.isActive()) {
+                console.error('loginByPin: no hay restaurante seleccionado.');
+                return null;
+            }
+
+            const usersRef = collection(this.firestore, this.tenant.path('users'));
             const q = query(usersRef, where('pin_acceso', '==', pin), where('activo', '==', true));
             const snapshot = await getDocs(q);
 
@@ -50,6 +58,7 @@ export class AuthService {
     logout(): void {
         this.currentUser.set(null);
         localStorage.removeItem('pos_session');
+        this.tenant.clearTenant();
         this.router.navigate(['/login']);
     }
 
