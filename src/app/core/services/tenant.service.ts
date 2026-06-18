@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import {
-    Firestore, collection, query, where, getDocs, doc, getDoc
+    Firestore, collection, query, where, getDocs, doc, getDoc, updateDoc
 } from '@angular/fire/firestore';
 import { Restaurant } from '../../shared/interfaces';
 
@@ -89,6 +89,26 @@ export class TenantService {
         } catch (error) {
             console.error('Error al cargar restaurante:', error);
             return null;
+        }
+    }
+
+    /**
+     * Actualiza campos del restaurante activo en Firestore y refresca la caché
+     * local para que los cambios (logo, banner, datos) se vean de inmediato.
+     */
+    async updateCurrentRestaurant(updates: Partial<Restaurant>): Promise<boolean> {
+        const current = this.current();
+        if (!current) {
+            return false;
+        }
+        try {
+            const ref = doc(this.firestore, 'restaurants', current.id);
+            await updateDoc(ref, { ...updates });
+            this.setTenant({ ...current, ...updates });
+            return true;
+        } catch (error) {
+            console.error('Error al actualizar el restaurante:', error);
+            return false;
         }
     }
 

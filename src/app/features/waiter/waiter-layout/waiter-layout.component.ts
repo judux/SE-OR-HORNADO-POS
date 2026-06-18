@@ -4,6 +4,7 @@ import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ThemeService } from '../../../core/services/theme.service';
+import { TenantService } from '../../../core/services/tenant.service';
 
 @Component({
   selector: 'app-waiter-layout',
@@ -21,10 +22,14 @@ import { ThemeService } from '../../../core/services/theme.service';
             </button>
           }
           
-          <img src="logo.png" alt="Señor Hornado" class="h-8 sm:h-10 object-contain invert drop-shadow-sm">
-          
+          @if (tenant.restaurant()?.logo_url; as logo) {
+            <img [src]="logo" [alt]="tenant.restaurant()?.nombre" class="h-8 sm:h-10 object-contain rounded-lg drop-shadow-sm">
+          } @else {
+            <img src="logo.png" alt="Logo" class="h-8 sm:h-10 object-contain invert drop-shadow-sm">
+          }
+
           <div class="border-l border-dark-600 pl-3">
-            <h1 class="text-sm sm:text-base font-bold leading-tight">{{ isTakingOrder ? 'Nueva Orden' : 'Mesas' }}</h1>
+            <h1 class="text-sm sm:text-base font-bold leading-tight">{{ isTakingOrder ? 'Nueva Orden' : (tenant.restaurant()?.nombre || 'Mesas') }}</h1>
             <p class="text-dark-300 text-[10px] sm:text-xs font-medium tracking-wide">{{ authService.user()?.nombre }} · MESERO</p>
           </div>
         </div>
@@ -49,6 +54,13 @@ import { ThemeService } from '../../../core/services/theme.service';
         </div>
       </header>
 
+      <!-- Letrero del restaurante (solo en la pantalla de mesas) -->
+      @if (!isTakingOrder && tenant.restaurant()?.banner_url; as banner) {
+        <div class="shrink-0 w-full">
+          <img [src]="banner" [alt]="tenant.restaurant()?.nombre" class="w-full max-h-40 object-cover">
+        </div>
+      }
+
       <!-- Content (Router Outlet) -->
       <main class="flex-1 overflow-hidden relative">
         <router-outlet></router-outlet>
@@ -59,6 +71,7 @@ import { ThemeService } from '../../../core/services/theme.service';
 export class WaiterLayoutComponent {
   public authService = inject(AuthService);
   public themeService = inject(ThemeService);
+  public tenant = inject(TenantService);
   private router = inject(Router);
 
   isTakingOrder = false;

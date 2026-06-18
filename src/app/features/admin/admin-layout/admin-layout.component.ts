@@ -6,11 +6,12 @@ import { ProductListComponent } from '../product-list/product-list.component';
 import { UserListComponent } from '../user-list/user-list.component';
 import { AdminDashboardComponent } from '../admin-dashboard/admin-dashboard.component';
 import { TableListComponent } from '../table-list/table-list.component';
+import { BrandingComponent } from '../branding/branding.component';
 
 @Component({
   selector: 'app-admin-layout',
   standalone: true,
-  imports: [CommonModule, ProductListComponent, UserListComponent, AdminDashboardComponent, TableListComponent],
+  imports: [CommonModule, ProductListComponent, UserListComponent, AdminDashboardComponent, TableListComponent, BrandingComponent],
   template: `
     <div class="min-h-screen bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col">
       <!-- Header -->
@@ -85,6 +86,16 @@ import { TableListComponent } from '../table-list/table-list.component';
             <span class="material-symbols-rounded text-lg">table_restaurant</span>
             Mesas
           </button>
+          <button
+            (click)="activeTab.set('restaurante')"
+            class="px-6 py-3 text-sm font-semibold transition-all duration-200 border-b-2 -mb-px flex items-center gap-2"
+            [class]="activeTab() === 'restaurante'
+              ? 'border-primary-500 text-primary-600'
+              : 'border-transparent text-dark-400 hover:text-dark-600'"
+          >
+            <span class="material-symbols-rounded text-lg">storefront</span>
+            Mi Restaurante
+          </button>
         </div>
       </div>
 
@@ -103,13 +114,16 @@ import { TableListComponent } from '../table-list/table-list.component';
           @if (activeTab() === 'mesas') {
             <app-table-list />
           }
+          @if (activeTab() === 'restaurante') {
+            <app-branding />
+          }
         </div>
       </main>
     </div>
   `,
 })
 export class AdminLayoutComponent {
-  activeTab = signal<'dashboard' | 'productos' | 'usuarios' | 'mesas'>('dashboard');
+  activeTab = signal<'dashboard' | 'productos' | 'usuarios' | 'mesas' | 'restaurante'>('dashboard');
 
   public authService = inject(AuthService);
   public themeService = inject(ThemeService);
