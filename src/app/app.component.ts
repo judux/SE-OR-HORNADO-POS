@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { BrandColorService } from './core/services/brand-color.service';
 
 @Component({
   selector: 'app-root',
@@ -10,4 +11,7 @@ import { RouterOutlet } from '@angular/router';
 })
 export class AppComponent {
   title = 'restaurante-pos';
+
+  // Mantiene vivo el servicio que aplica el color institucional del restaurante.
+  private brandColor = inject(BrandColorService);
 }

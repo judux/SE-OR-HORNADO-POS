@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { OrderService } from '../../../core/services/order.service';
 import { ProductService } from '../../../core/services/product.service';
 import { PettyCashService } from '../../../core/services/petty-cash.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import { Order, Product } from '../../../shared/interfaces';
 
 @Component({
@@ -589,6 +590,7 @@ export class CashierDashboardComponent implements OnDestroy {
   public orderService = inject(OrderService);
   public productService = inject(ProductService);
   public pettyCashService = inject(PettyCashService);
+  public tenant = inject(TenantService);
 
   orders = this.orderService.getOrdersForCashier;
 
@@ -841,8 +843,9 @@ export class CashierDashboardComponent implements OnDestroy {
     if (!reportEl) return;
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+    const nombreRest = this.tenant.restaurant()?.nombre ?? 'Restaurante';
     printWindow.document.write(`
-      <html><head><title>Cierre de Turno - Señor Hornado</title>
+      <html><head><title>Cierre de Turno - ${nombreRest}</title>
       <style>body{font-family:system-ui,sans-serif;padding:20px;max-width:600px;margin:0 auto}
       h3{font-size:18px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #eee;text-align:left}
       .right{text-align:right}.bold{font-weight:bold}.total{font-size:20px;border-top:2px solid #333;padding-top:10px}</style>

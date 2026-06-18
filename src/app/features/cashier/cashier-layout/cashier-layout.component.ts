@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ThemeService } from '../../../core/services/theme.service';
+import { TenantService } from '../../../core/services/tenant.service';
 import { CashierDashboardComponent } from '../cashier-dashboard/cashier-dashboard.component';
 
 @Component({
@@ -12,9 +13,15 @@ import { CashierDashboardComponent } from '../cashier-dashboard/cashier-dashboar
       <!-- Header -->
       <header class="h-[80px] bg-dark-800 text-white px-6 flex items-center justify-between shadow-lg">
         <div class="flex items-center gap-4">
-          <img src="logo.png" alt="Señor Hornado" class="h-10 object-contain invert drop-shadow-sm">
+          @if (tenant.restaurant()?.logo_url; as logo) {
+            <img [src]="logo" [alt]="tenant.restaurant()?.nombre" class="h-10 object-contain rounded-lg drop-shadow-sm">
+          } @else {
+            <div class="w-10 h-10 rounded-xl bg-primary-500 flex items-center justify-center">
+              <span class="material-symbols-rounded text-white">storefront</span>
+            </div>
+          }
           <div class="border-l border-dark-600 pl-4 hidden sm:block">
-            <h1 class="text-lg font-bold leading-none mb-1">Caja</h1>
+            <h1 class="text-lg font-bold leading-none mb-1">Caja · {{ tenant.restaurant()?.nombre }}</h1>
             <p class="text-dark-300 text-xs">{{ authService.user()?.nombre }}</p>
           </div>
         </div>
@@ -49,4 +56,5 @@ import { CashierDashboardComponent } from '../cashier-dashboard/cashier-dashboar
 export class CashierLayoutComponent {
   public authService = inject(AuthService);
   public themeService = inject(ThemeService);
+  public tenant = inject(TenantService);
 }

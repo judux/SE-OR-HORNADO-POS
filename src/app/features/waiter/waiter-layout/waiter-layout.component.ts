@@ -25,7 +25,9 @@ import { TenantService } from '../../../core/services/tenant.service';
           @if (tenant.restaurant()?.logo_url; as logo) {
             <img [src]="logo" [alt]="tenant.restaurant()?.nombre" class="h-8 sm:h-10 object-contain rounded-lg drop-shadow-sm">
           } @else {
-            <img src="logo.png" alt="Logo" class="h-8 sm:h-10 object-contain invert drop-shadow-sm">
+            <div class="w-9 h-9 rounded-lg bg-primary-500 flex items-center justify-center">
+              <span class="material-symbols-rounded text-white text-[20px]">storefront</span>
+            </div>
           }
 
           <div class="border-l border-dark-600 pl-3">

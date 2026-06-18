@@ -1,12 +1,14 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { TenantService } from '../../../core/services/tenant.service';
 import { ImageService } from '../../../core/services/image.service';
+import { BrandColorService } from '../../../core/services/brand-color.service';
 
 @Component({
     selector: 'app-branding',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, FormsModule],
     template: `
     <div class="space-y-6 max-w-3xl">
       <div>
@@ -71,6 +73,43 @@ import { ImageService } from '../../../core/services/image.service';
         </div>
       </div>
 
+      <!-- Color institucional -->
+      <div class="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-5">
+        <h3 class="font-bold text-dark-800 dark:text-white mb-1">Color institucional</h3>
+        <p class="text-xs text-dark-400 mb-4">El color principal de botones y detalles. Déjalo por defecto o elige el tuyo.</p>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Por defecto -->
+          <button (click)="setColor('')"
+            class="w-10 h-10 rounded-xl border-2 transition-all flex items-center justify-center"
+            [class]="colorPreview() === '' ? 'border-dark-800 dark:border-white scale-110' : 'border-transparent'"
+            style="background:#dc2626" title="Por defecto">
+            @if (colorPreview() === '') {
+              <span class="material-symbols-rounded text-white text-[18px]">check</span>
+            }
+          </button>
+
+          <!-- Presets -->
+          @for (c of presets; track c) {
+            <button (click)="setColor(c)"
+              class="w-10 h-10 rounded-xl border-2 transition-all flex items-center justify-center"
+              [class]="colorPreview() === c ? 'border-dark-800 dark:border-white scale-110' : 'border-transparent'"
+              [style.background]="c" [title]="c">
+              @if (colorPreview() === c) {
+                <span class="material-symbols-rounded text-white text-[18px]">check</span>
+              }
+            </button>
+          }
+
+          <!-- Personalizado -->
+          <label class="w-10 h-10 rounded-xl border-2 border-dashed border-dark-300 dark:border-dark-600 flex items-center justify-center cursor-pointer relative overflow-hidden" title="Color personalizado">
+            <span class="material-symbols-rounded text-dark-400 text-[18px]">colorize</span>
+            <input type="color" class="absolute inset-0 opacity-0 cursor-pointer"
+              [value]="colorPreview() || '#dc2626'" (input)="setColor($any($event.target).value)" />
+          </label>
+        </div>
+      </div>
+
       <!-- Guardar -->
       <div class="flex items-center gap-3">
         <button
@@ -92,17 +131,22 @@ import { ImageService } from '../../../core/services/image.service';
     </div>
   `,
 })
-export class BrandingComponent {
+export class BrandingComponent implements OnDestroy {
     private tenant = inject(TenantService);
     private imageService = inject(ImageService);
+    private brandColor = inject(BrandColorService);
+
+    readonly presets = ['#dc2626', '#ea580c', '#16a34a', '#2563eb', '#7c3aed', '#db2777', '#0d9488', '#ca8a04'];
 
     // Valores guardados actualmente en el restaurante
     private savedLogo = computed(() => this.tenant.restaurant()?.logo_url ?? '');
     private savedBanner = computed(() => this.tenant.restaurant()?.banner_url ?? '');
+    private savedColor = computed(() => this.tenant.restaurant()?.color_primary ?? '');
 
     // Selección pendiente (null = sin cambios respecto a lo guardado)
     private newLogo = signal<string | null>(null);
     private newBanner = signal<string | null>(null);
+    private newColor = signal<string | null>(null);
 
     isSaving = signal(false);
     message = signal('');
@@ -110,8 +154,18 @@ export class BrandingComponent {
 
     logoPreview = computed(() => this.newLogo() ?? this.savedLogo());
     bannerPreview = computed(() => this.newBanner() ?? this.savedBanner());
+    colorPreview = computed(() => this.newColor() ?? this.savedColor());
 
-    hasChanges = computed(() => this.newLogo() !== null || this.newBanner() !== null);
+    hasChanges = computed(() =>
+        this.newLogo() !== null || this.newBanner() !== null || this.newColor() !== null
+    );
+
+    /** Cambia el color (''= por defecto) y lo aplica en vivo para previsualizar. */
+    setColor(hex: string): void {
+        this.newColor.set(hex);
+        this.brandColor.apply(hex || null);
+        this.message.set('');
+    }
 
     async onLogoSelected(event: Event): Promise<void> {
         const file = (event.target as HTMLInputElement).files?.[0];
@@ -141,9 +195,10 @@ export class BrandingComponent {
         if (!this.hasChanges()) return;
         this.isSaving.set(true);
 
-        const updates: { logo_url?: string; banner_url?: string } = {};
+        const updates: { logo_url?: string; banner_url?: string; color_primary?: string } = {};
         if (this.newLogo() !== null) updates.logo_url = this.newLogo()!;
         if (this.newBanner() !== null) updates.banner_url = this.newBanner()!;
+        if (this.newColor() !== null) updates.color_primary = this.newColor()!;
 
         const ok = await this.tenant.updateCurrentRestaurant(updates);
         this.isSaving.set(false);
@@ -151,6 +206,7 @@ export class BrandingComponent {
         if (ok) {
             this.newLogo.set(null);
             this.newBanner.set(null);
+            this.newColor.set(null);
             this.showMessage('Cambios guardados correctamente.', true);
         } else {
             this.showMessage('No se pudieron guardar los cambios.', false);
@@ -160,11 +216,21 @@ export class BrandingComponent {
     discard(): void {
         this.newLogo.set(null);
         this.newBanner.set(null);
+        this.newColor.set(null);
+        // Revierte la previsualización de color a lo guardado
+        this.brandColor.apply(this.savedColor() || null);
         this.message.set('');
     }
 
     private showMessage(text: string, ok: boolean): void {
         this.message.set(text);
         this.messageOk.set(ok);
+    }
+
+    ngOnDestroy(): void {
+        // Si quedó un color previsualizado sin guardar, vuelve al color guardado.
+        if (this.newColor() !== null) {
+            this.brandColor.apply(this.savedColor() || null);
+        }
     }
 }

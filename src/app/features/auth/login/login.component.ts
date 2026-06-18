@@ -12,7 +12,7 @@ import { Restaurant } from '../../../shared/interfaces';
   imports: [CommonModule, RouterLink],
   template: `
     <div class="min-h-screen flex items-center justify-center bg-dark-900 p-4">
-      <div class="w-full max-w-sm">
+      <div class="w-full" [class]="selectedRestaurant() ? 'max-w-sm' : 'max-w-4xl'">
 
         <!-- PASO 1: Selección de restaurante -->
         @if (!selectedRestaurant()) {
@@ -21,32 +21,43 @@ import { Restaurant } from '../../../shared/interfaces';
             <p class="text-dark-400 text-sm mt-1">Elige dónde vas a trabajar</p>
           </div>
 
-          <div class="bg-white dark:bg-dark-800 rounded-3xl shadow-2xl p-4 border border-dark-100 dark:border-dark-700">
-            @if (activeRestaurants().length === 0) {
-              <div class="p-8 text-center text-dark-400">
-                <span class="material-symbols-rounded text-4xl mb-2 opacity-50">storefront</span>
-                <p class="font-medium">No hay restaurantes disponibles</p>
-              </div>
-            } @else {
-              <div class="space-y-2 max-h-[60vh] overflow-y-auto">
-                @for (r of activeRestaurants(); track r.id) {
-                  <button (click)="selectRestaurant(r)"
-                    class="w-full flex items-center gap-3 p-3 rounded-2xl bg-dark-50 dark:bg-dark-900/50
-                           hover:bg-dark-100 dark:hover:bg-dark-900 active:scale-[0.98] transition-all text-left">
-                    <div class="w-12 h-12 rounded-xl bg-white dark:bg-dark-800 flex items-center justify-center overflow-hidden shrink-0 border border-dark-100 dark:border-dark-700">
+          @if (activeRestaurants().length === 0) {
+            <div class="bg-white dark:bg-dark-800 rounded-3xl shadow-2xl p-10 text-center text-dark-400 border border-dark-100 dark:border-dark-700">
+              <span class="material-symbols-rounded text-4xl mb-2 opacity-50">storefront</span>
+              <p class="font-medium">No hay restaurantes disponibles</p>
+            </div>
+          } @else {
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              @for (r of activeRestaurants(); track r.id) {
+                <button (click)="selectRestaurant(r)"
+                  class="group bg-white dark:bg-dark-800 rounded-3xl shadow-2xl border border-dark-100 dark:border-dark-700
+                         overflow-hidden text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.99] hover:border-primary-400">
+                  <!-- Letrero (banner) -->
+                  <div class="w-full aspect-[3/1] bg-dark-100 dark:bg-dark-900 flex items-center justify-center overflow-hidden">
+                    @if (r.banner_url) {
+                      <img [src]="r.banner_url" [alt]="r.nombre" class="w-full h-full object-cover" />
+                    } @else if (r.logo_url) {
+                      <img [src]="r.logo_url" [alt]="r.nombre" class="h-16 object-contain" />
+                    } @else {
+                      <span class="material-symbols-rounded text-dark-300 text-4xl">storefront</span>
+                    }
+                  </div>
+                  <!-- Pie de la card -->
+                  <div class="flex items-center gap-3 p-4">
+                    <div class="w-10 h-10 rounded-xl bg-dark-50 dark:bg-dark-900 flex items-center justify-center overflow-hidden shrink-0 border border-dark-100 dark:border-dark-700">
                       @if (r.logo_url) {
                         <img [src]="r.logo_url" [alt]="r.nombre" class="w-full h-full object-cover" />
                       } @else {
-                        <span class="material-symbols-rounded text-dark-300">restaurant</span>
+                        <span class="material-symbols-rounded text-dark-300 text-[20px]">restaurant</span>
                       }
                     </div>
-                    <span class="flex-1 font-bold text-dark-800 dark:text-white">{{ r.nombre }}</span>
-                    <span class="material-symbols-rounded text-dark-300">chevron_right</span>
-                  </button>
-                }
-              </div>
-            }
-          </div>
+                    <span class="flex-1 font-bold text-dark-800 dark:text-white truncate">{{ r.nombre }}</span>
+                    <span class="material-symbols-rounded text-dark-300 group-hover:text-primary-500 transition-colors">chevron_right</span>
+                  </div>
+                </button>
+              }
+            </div>
+          }
         }
 
         <!-- PASO 2: PIN del restaurante seleccionado -->
