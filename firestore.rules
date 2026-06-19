@@ -16,25 +16,32 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/super_admins/$(request.auth.uid));
     }
 
+    // Cualquier sesión de Firebase Auth, incluida la ANÓNIMA que la app
+    // inicia automáticamente al arrancar. Bloquea el acceso de quien no
+    // pase por la app (sin token = denegado).
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     // ── Restaurantes ─────────────────────────────────────────────
-    // Lectura pública: la pantalla de login necesita listar restaurantes
-    // (los empleados aún NO usan Firebase Auth, son anónimos para Firestore).
+    // Lectura: requiere sesión (la app inicia una anónima antes del login,
+    // así que la pantalla de selección sigue funcionando).
     // Crear / suspender / editar un restaurante: solo el super admin.
     match /restaurants/{restaurantId} {
-      allow read: if true;
+      allow read: if isSignedIn();
       allow create, update, delete: if isSuperAdmin();
 
       // ── Datos operativos de cada restaurante ───────────────────
       // users, products, tables, orders, order_history, expenses.
       //
-      // ⚠️ LIMITACIÓN DE SEGURIDAD CONOCIDA:
+      // ⚠️ LIMITACIÓN CONOCIDA (aislamiento entre restaurantes):
       // Los empleados se autentican por PIN (no Firebase Auth), por lo que
-      // request.auth es null y NO se puede aislar el tenant a nivel de servidor.
-      // Hoy el aislamiento lo garantiza el cliente (TenantService).
-      // Para seguridad real por restaurante hace falta migrar a Firebase Auth
-      // con custom claims (requiere Cloud Functions). Ver Fase de endurecimiento.
+      // todos comparten una sesión anónima sin saber a qué restaurante
+      // pertenecen. Exigir sesión cierra el acceso totalmente abierto, pero
+      // NO aísla un restaurante de otro a nivel de servidor. El aislamiento
+      // real requiere Firebase Auth con custom claims (Cloud Functions / Blaze).
       match /{subcollection}/{docId} {
-        allow read, write: if true;
+        allow read, write: if isSignedIn();
       }
     }
   }
