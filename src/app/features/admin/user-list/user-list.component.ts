@@ -10,8 +10,8 @@ import { User } from '../../../shared/interfaces';
   imports: [CommonModule, FormsModule],
   template: `
     <div>
-      <!-- Header -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <!-- Header (card) -->
+      <div class="bg-white dark:bg-dark-800 rounded-2xl p-5 border border-dark-100 dark:border-dark-700 shadow-sm mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 class="text-xl font-bold text-dark-800 dark:text-white">Gestión de Usuarios</h2>
           <p class="text-dark-400 dark:text-dark-300 text-sm">{{ userService.allUsers().length }} usuarios registrados</p>

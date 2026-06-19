@@ -8,7 +8,7 @@ import { OrderService } from '../../../core/services/order.service';
   imports: [CommonModule],
   template: `
     <div class="space-y-6">
-      <div class="flex items-center justify-between">
+      <div class="bg-white dark:bg-dark-800 rounded-2xl p-5 border border-dark-100 dark:border-dark-700 shadow-sm flex items-center justify-between gap-4">
         <h2 class="text-xl font-bold text-dark-800 dark:text-white flex items-center gap-2">
           <span class="material-symbols-rounded text-primary-500">dashboard</span>
           Dashboard de Ventas

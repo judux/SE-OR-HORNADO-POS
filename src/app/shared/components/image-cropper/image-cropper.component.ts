@@ -32,7 +32,7 @@ export interface CropResult {
     imports: [CommonModule, FormsModule],
     template: `
     <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" (click)="onBackdrop()">
-      <div class="bg-white dark:bg-dark-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+      <div class="bg-white dark:bg-dark-800 rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden"
            (click)="$event.stopPropagation()">
 
         <!-- Header -->
@@ -47,11 +47,12 @@ export interface CropResult {
         </div>
 
         <!-- Viewport de recorte -->
-        <div class="px-6 pt-5">
+        <div class="px-6 pt-5 overflow-y-auto">
           <div
             #cropContainer
-            class="relative overflow-hidden rounded-2xl bg-dark-100 dark:bg-dark-900 cursor-grab select-none border-2 border-dashed border-primary-300"
+            class="relative overflow-hidden rounded-2xl bg-dark-100 dark:bg-dark-900 cursor-grab select-none border-2 border-dashed border-primary-300 mx-auto"
             [style.aspect-ratio]="aspectRatio()"
+            [style.width]="'min(100%, calc(55vh * ' + aspectRatio() + '))'"
             (mousedown)="startDrag($event)"
             (touchstart)="startTouch($event)"
             (wheel)="onWheel($event)">
@@ -294,7 +295,6 @@ export class ImageCropperComponent implements AfterViewInit, OnChanges {
     confirm(): void {
         if (!this.img.naturalWidth || !this.cW) return;
 
-        // Calcula qué región de la imagen original es visible en el viewport
         const z = this.zoom();
         const srcX = -this.posX() / z;
         const srcY = -this.posY() / z;
@@ -305,9 +305,22 @@ export class ImageCropperComponent implements AfterViewInit, OnChanges {
         canvas.width = this.outputWidth();
         canvas.height = this.outputHeight();
         const ctx = canvas.getContext('2d')!;
+
+        // Si la fuente es PNG puede tener transparencia → exportar como PNG para preservarla.
+        // Para otros formatos (JPEG, etc.) llenar de blanco para evitar el fondo negro.
+        const isPng = this.imageSrc().startsWith('data:image/png');
+        if (!isPng) {
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
         ctx.drawImage(this.img, srcX, srcY, srcW, srcH, 0, 0, canvas.width, canvas.height);
 
-        this.confirmed.emit(canvas.toDataURL('image/jpeg', 0.88));
+        this.confirmed.emit(
+            isPng
+                ? canvas.toDataURL('image/png')
+                : canvas.toDataURL('image/jpeg', 0.88)
+        );
     }
 
     cancel(): void {

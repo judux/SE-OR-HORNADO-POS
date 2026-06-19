@@ -1,4 +1,4 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -32,28 +32,46 @@ import { Restaurant } from '../../../shared/interfaces';
                 <button (click)="selectRestaurant(r)"
                   class="group bg-white dark:bg-dark-800 rounded-3xl shadow-2xl border border-dark-100 dark:border-dark-700
                          overflow-hidden text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.99] hover:border-primary-400">
-                  <!-- Letrero (banner) -->
-                  <div class="w-full aspect-[3/1] bg-dark-100 dark:bg-dark-900 flex items-center justify-center overflow-hidden">
-                    @if (r.banner_url) {
-                      <img [src]="r.banner_url" [alt]="r.nombre" class="w-full h-full object-cover" />
-                    } @else if (r.logo_url) {
-                      <img [src]="r.logo_url" [alt]="r.nombre" class="h-16 object-contain" />
-                    } @else {
-                      <span class="material-symbols-rounded text-dark-300 text-4xl">storefront</span>
+
+                  @switch (cardEstilo(r)) {
+
+                    @case ('letrero') {
+                      <!-- Solo el letrero, abarca toda la tarjeta -->
+                      <div class="w-full aspect-[3/1] relative overflow-hidden">
+                        <img [src]="r.banner_url" [alt]="r.nombre"
+                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200"></div>
+                      </div>
                     }
-                  </div>
-                  <!-- Pie de la card -->
-                  <div class="flex items-center gap-3 p-4">
-                    <div class="w-10 h-10 rounded-xl bg-dark-50 dark:bg-dark-900 flex items-center justify-center overflow-hidden shrink-0 border border-dark-100 dark:border-dark-700">
-                      @if (r.logo_url) {
-                        <img [src]="r.logo_url" [alt]="r.nombre" class="w-full h-full object-cover" />
-                      } @else {
-                        <span class="material-symbols-rounded text-dark-300 text-[20px]">restaurant</span>
-                      }
-                    </div>
-                    <span class="flex-1 font-bold text-dark-800 dark:text-white truncate">{{ r.nombre }}</span>
-                    <span class="material-symbols-rounded text-dark-300 group-hover:text-primary-500 transition-colors">chevron_right</span>
-                  </div>
+
+                    @case ('letrero_nombre') {
+                      <!-- Letrero arriba + nombre debajo -->
+                      <div class="w-full aspect-[3/1] relative overflow-hidden">
+                        <img [src]="r.banner_url" [alt]="r.nombre"
+                             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                      </div>
+                      <div class="flex items-center gap-3 px-4 py-3">
+                        <span class="flex-1 font-bold text-dark-800 dark:text-white truncate">{{ r.nombre }}</span>
+                        <span class="material-symbols-rounded text-dark-300 group-hover:text-primary-500 transition-colors">chevron_right</span>
+                      </div>
+                    }
+
+                    @default {
+                      <!-- Logo (o ícono) arriba + nombre debajo -->
+                      <div class="w-full aspect-[3/1] bg-dark-100 dark:bg-dark-900 flex items-center justify-center overflow-hidden">
+                        @if (r.logo_url) {
+                          <img [src]="r.logo_url" [alt]="r.nombre" class="h-16 object-contain" />
+                        } @else {
+                          <span class="material-symbols-rounded text-dark-300 text-4xl">storefront</span>
+                        }
+                      </div>
+                      <div class="flex items-center gap-3 px-4 py-3">
+                        <span class="flex-1 font-bold text-dark-800 dark:text-white truncate">{{ r.nombre }}</span>
+                        <span class="material-symbols-rounded text-dark-300 group-hover:text-primary-500 transition-colors">chevron_right</span>
+                      </div>
+                    }
+                  }
+
                 </button>
               }
             </div>
@@ -63,10 +81,14 @@ import { Restaurant } from '../../../shared/interfaces';
         <!-- PASO 2: PIN del restaurante seleccionado -->
         @if (selectedRestaurant(); as rest) {
           <div class="text-center mb-8">
-            @if (rest.logo_url) {
+            @if (rest.banner_url) {
+              <img [src]="rest.banner_url" [alt]="rest.nombre" class="w-full max-w-xs mx-auto object-contain mb-3 rounded-2xl">
+            } @else if (rest.logo_url) {
               <img [src]="rest.logo_url" [alt]="rest.nombre" class="h-24 mx-auto object-contain mb-3 rounded-2xl">
+              <h1 class="text-xl font-black text-white">{{ rest.nombre }}</h1>
+            } @else {
+              <h1 class="text-xl font-black text-white">{{ rest.nombre }}</h1>
             }
-            <h1 class="text-xl font-black text-white">{{ rest.nombre }}</h1>
             <button (click)="backToList()" class="text-dark-400 text-xs mt-1 hover:text-primary-400 flex items-center gap-1 mx-auto">
               <span class="material-symbols-rounded text-[14px]">arrow_back</span> Cambiar restaurante
             </button>
@@ -167,6 +189,14 @@ export class LoginComponent {
     this.restaurantService.allRestaurants().filter(r => r.activo)
   );
 
+  /** Estilo efectivo de la tarjeta: usa el configurado o lo deduce del contenido. */
+  cardEstilo(r: Restaurant): 'letrero' | 'letrero_nombre' | 'logo_nombre' {
+    if (r.card_estilo && (r.card_estilo !== 'letrero' && r.card_estilo !== 'letrero_nombre' || r.banner_url)) {
+      return r.card_estilo;
+    }
+    return r.banner_url ? 'letrero' : 'logo_nombre';
+  }
+
   constructor() {
     // Si ya tiene sesión activa, redirigir
     if (this.authService.isLoggedIn()) {
@@ -174,6 +204,18 @@ export class LoginComponent {
       if (user) {
         this.authService.redirectByRole(user);
       }
+    }
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKey(event: KeyboardEvent): void {
+    if (!this.selectedRestaurant() || this.isLoading()) return;
+    if (event.key >= '0' && event.key <= '9') {
+      this.addDigit(event.key);
+    } else if (event.key === 'Backspace') {
+      this.deleteLastDigit();
+    } else if (event.key === 'Escape') {
+      this.backToList();
     }
   }
 

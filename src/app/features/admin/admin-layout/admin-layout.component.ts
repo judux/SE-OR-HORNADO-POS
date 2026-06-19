@@ -18,15 +18,16 @@ import { BrandingComponent } from '../branding/branding.component';
       <!-- Header -->
       <header class="bg-dark-800 text-white px-6 py-4 flex items-center justify-between shadow-lg shrink-0">
         <div class="flex items-center gap-4">
-          @if (tenant.restaurant()?.logo_url; as logo) {
-            <img [src]="logo" [alt]="tenant.restaurant()?.nombre" class="h-14 object-contain rounded-lg drop-shadow-sm">
+          @if (tenant.restaurant()?.banner_url; as banner) {
+            <img [src]="banner" [alt]="tenant.restaurant()?.nombre" class="h-14 object-contain rounded-lg drop-shadow-sm">
+          } @else if (tenant.restaurant()?.logo_url) {
+            <img [src]="tenant.restaurant()?.logo_url" [alt]="tenant.restaurant()?.nombre" class="h-14 object-contain rounded-lg drop-shadow-sm">
           } @else {
             <div class="w-12 h-12 rounded-xl bg-primary-500 flex items-center justify-center">
               <span class="material-symbols-rounded text-white">storefront</span>
             </div>
           }
           <div class="border-l border-dark-600 pl-4 hidden sm:block">
-            <p class="text-sm font-bold leading-tight">{{ tenant.restaurant()?.nombre }}</p>
             <p class="text-dark-300 text-xs font-medium">Panel de Administración</p>
           </div>
         </div>

@@ -10,42 +10,44 @@ import { Product } from '../../../shared/interfaces';
   imports: [CommonModule, FormsModule],
   template: `
     <div>
-      <!-- Header con filtro y botón agregar -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 class="text-xl font-bold text-dark-800 dark:text-white">Menú del Restaurante</h2>
-          <p class="text-dark-400 dark:text-dark-300 text-sm">{{ filteredProducts().length }} productos</p>
-        </div>
-        <button
-          (click)="openForm()"
-          class="btn-primary flex items-center gap-2 text-sm font-semibold"
-        >
-          <span class="material-symbols-rounded">add</span> Agregar Producto
-        </button>
-      </div>
-
-      <!-- Filtro por categoría -->
-      <div class="flex flex-wrap gap-2 mb-6">
-        <button
-          (click)="selectedCategory.set('todos')"
-          class="px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200"
-          [class]="selectedCategory() === 'todos'
-            ? 'bg-dark-800 text-white'
-            : 'bg-white dark:bg-dark-800 text-dark-500 dark:text-dark-300 border border-dark-200 dark:border-dark-700 hover:bg-dark-50 dark:hover:bg-dark-700'"
-        >
-          Todos
-        </button>
-        @for (cat of productService.getCategories(); track cat) {
+      <!-- Header con filtro y botón agregar (card) -->
+      <div class="bg-white dark:bg-dark-800 rounded-2xl p-5 border border-dark-100 dark:border-dark-700 shadow-sm mb-6 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-dark-800 dark:text-white">Menú del Restaurante</h2>
+            <p class="text-dark-400 dark:text-dark-300 text-sm">{{ filteredProducts().length }} productos</p>
+          </div>
           <button
-            (click)="selectedCategory.set(cat)"
-            class="px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200"
-            [class]="selectedCategory() === cat
-              ? 'bg-dark-800 text-white'
-              : 'bg-white dark:bg-dark-800 text-dark-500 dark:text-dark-300 border border-dark-200 dark:border-dark-700 hover:bg-dark-50 dark:hover:bg-dark-700'"
+            (click)="openForm()"
+            class="btn-primary flex items-center gap-2 text-sm font-semibold"
           >
-            {{ productService.getCategoryLabel(cat) }}
+            <span class="material-symbols-rounded">add</span> Agregar Producto
           </button>
-        }
+        </div>
+
+        <!-- Filtro por categoría -->
+        <div class="flex flex-wrap gap-2 pt-4 border-t border-dark-100 dark:border-dark-700">
+          <button
+            (click)="selectedCategory.set('todos')"
+            class="px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+            [class]="selectedCategory() === 'todos'
+              ? 'bg-dark-800 text-white'
+              : 'bg-dark-50 dark:bg-dark-900 text-dark-500 dark:text-dark-300 border border-dark-200 dark:border-dark-700 hover:bg-dark-100 dark:hover:bg-dark-700'"
+          >
+            Todos
+          </button>
+          @for (cat of productService.getCategories(); track cat) {
+            <button
+              (click)="selectedCategory.set(cat)"
+              class="px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200"
+              [class]="selectedCategory() === cat
+                ? 'bg-dark-800 text-white'
+                : 'bg-dark-50 dark:bg-dark-900 text-dark-500 dark:text-dark-300 border border-dark-200 dark:border-dark-700 hover:bg-dark-100 dark:hover:bg-dark-700'"
+            >
+              {{ productService.getCategoryLabel(cat) }}
+            </button>
+          }
+        </div>
       </div>
 
       <!-- Lista de productos -->

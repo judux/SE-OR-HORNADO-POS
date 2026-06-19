@@ -46,7 +46,7 @@ import { SuperAdminService } from '../../../core/auth/super-admin.service';
         </div>
 
         <!-- Acciones -->
-        <div class="flex items-center justify-between">
+        <div class="bg-white dark:bg-dark-800 rounded-2xl p-4 border border-dark-100 dark:border-dark-700 flex items-center justify-between gap-4">
           <h2 class="text-lg font-bold text-dark-800 dark:text-white">Restaurantes</h2>
           <button (click)="openCreate()" class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-colors">
             <span class="material-symbols-rounded text-[18px]">add</span> Nuevo

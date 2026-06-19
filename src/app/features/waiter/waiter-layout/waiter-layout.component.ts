@@ -22,8 +22,10 @@ import { TenantService } from '../../../core/services/tenant.service';
             </button>
           }
           
-          @if (tenant.restaurant()?.logo_url; as logo) {
-            <img [src]="logo" [alt]="tenant.restaurant()?.nombre" class="h-8 sm:h-10 object-contain rounded-lg drop-shadow-sm">
+          @if (tenant.restaurant()?.banner_url; as banner) {
+            <img [src]="banner" [alt]="tenant.restaurant()?.nombre" class="h-10 sm:h-11 object-contain rounded-lg drop-shadow-sm">
+          } @else if (tenant.restaurant()?.logo_url) {
+            <img [src]="tenant.restaurant()?.logo_url" [alt]="tenant.restaurant()?.nombre" class="h-8 sm:h-10 object-contain rounded-lg drop-shadow-sm">
           } @else {
             <div class="w-9 h-9 rounded-lg bg-primary-500 flex items-center justify-center">
               <span class="material-symbols-rounded text-white text-[20px]">storefront</span>
@@ -31,7 +33,7 @@ import { TenantService } from '../../../core/services/tenant.service';
           }
 
           <div class="border-l border-dark-600 pl-3">
-            <h1 class="text-sm sm:text-base font-bold leading-tight">{{ isTakingOrder ? 'Nueva Orden' : (tenant.restaurant()?.nombre || 'Mesas') }}</h1>
+            <h1 class="text-sm sm:text-base font-bold leading-tight">{{ isTakingOrder ? 'Nueva Orden' : 'Mesas' }}</h1>
             <p class="text-dark-300 text-[10px] sm:text-xs font-medium tracking-wide">{{ authService.user()?.nombre }} · MESERO</p>
           </div>
         </div>
@@ -55,13 +57,6 @@ import { TenantService } from '../../../core/services/tenant.service';
           </button>
         </div>
       </header>
-
-      <!-- Letrero del restaurante (solo en la pantalla de mesas) -->
-      @if (!isTakingOrder && tenant.restaurant()?.banner_url; as banner) {
-        <div class="shrink-0 w-full">
-          <img [src]="banner" [alt]="tenant.restaurant()?.nombre" class="w-full max-h-40 object-cover">
-        </div>
-      }
 
       <!-- Content (Router Outlet) -->
       <main class="flex-1 overflow-hidden relative">
