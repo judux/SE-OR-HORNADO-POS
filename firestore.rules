@@ -4,16 +4,27 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ── Super admins ─────────────────────────────────────────────
-    // Solo el propio super admin (autenticado con Firebase Auth) puede leer
-    // su documento. La escritura se hace manualmente desde la consola de Firebase.
-    match /super_admins/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
+    // Lectura permitida a cualquier sesión autenticada: la app verifica el
+    // rol con un query por `email` (el doc tiene ID autogenerado, no el uid),
+    // así que no se puede restringir por uid. El contenido es solo nombre+email
+    // y leerlo NO otorga privilegios (el privilegio se valida por email tras
+    // autenticar con Google/email en Firebase Auth).
+    // La escritura se hace manualmente desde la consola de Firebase.
+    match /super_admins/{docId} {
+      allow read: if request.auth != null;
       allow write: if false;
     }
 
+    // El super admin se identifica por su email verificado de Firebase Auth
+    // (Google/email). No se puede consultar la colección super_admins desde las
+    // reglas (solo lookups por ID, y el doc tiene ID autogenerado), así que se
+    // listan aquí los correos autorizados. Agregar más si hay más super admins.
     function isSuperAdmin() {
-      return request.auth != null &&
-        exists(/databases/$(database)/documents/super_admins/$(request.auth.uid));
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          'johandavidromoro@gmail.com'
+        ];
     }
 
     // Cualquier sesión de Firebase Auth, incluida la ANÓNIMA que la app
