@@ -38,7 +38,7 @@ export class ImageService {
         return canvas.toDataURL('image/jpeg', quality);
     }
 
-    private readAsDataUrl(file: File): Promise<string> {
+    readAsDataUrl(file: File): Promise<string> {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result as string);
