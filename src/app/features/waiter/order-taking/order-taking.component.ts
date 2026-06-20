@@ -19,9 +19,6 @@ import { Product } from '../../../shared/interfaces';
         <!-- Header del Menú -->
         <div class="mb-4 shrink-0 flex items-center justify-between">
           <h2 class="text-xl font-bold text-dark-800 dark:text-white flex items-center gap-2">
-            <button (click)="goBack()" class="p-2 -ml-2 rounded-xl text-dark-400 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-800 hover:text-dark-800 dark:hover:text-white transition-colors flex items-center justify-center">
-              <span class="material-symbols-rounded">arrow_back</span>
-            </button>
             Menú Principal
           </h2>
           <!-- Mesa Info Mobile -->
@@ -95,8 +92,8 @@ import { Product } from '../../../shared/interfaces';
            [class.translate-y-full]="!isCartOpenMobile()">
         
         <!-- Toggle para Mobile -->
-        <button (click)="isCartOpenMobile.set(!isCartOpenMobile())" 
-                class="lg:hidden absolute -top-14 inset-x-4 h-12 bg-dark-800 text-white rounded-t-2xl font-bold flex items-center justify-between px-6 shadow-lg border-b border-dark-700">
+        <button (click)="isCartOpenMobile.set(!isCartOpenMobile())"
+                class="lg:hidden absolute -top-12 inset-x-0 h-12 bg-dark-800 text-white rounded-t-3xl font-bold flex items-center justify-between px-6 shadow-lg">
           <span>Ver Pedido ({{ orderService.totalQuantity() }})</span>
           <span>$ {{ orderService.totalAmount() | number:'1.0-0' }}</span>
         </button>

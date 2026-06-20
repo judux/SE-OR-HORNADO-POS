@@ -83,13 +83,8 @@ export class WaiterLayoutComponent {
   }
 
   goBackToTables(): void {
-    // Si la ruta maneja su propio estado cancelado (como OrderTakingComponent),
-    // sería mejor que el botón <- del layout delegue o esté sincronizado, pero para mantenerlo
-    // simple, podemos navegar a /mesero y que el guardado se purgue si procede.
-    const confirmPrompt = window.confirm('Salir cancelará la orden actual. ¿Estás seguro?');
-    if (confirmPrompt) {
-      this.router.navigate(['/mesero']);
-    }
+    // Vuelve a la selección de mesas sin confirmación.
+    this.router.navigate(['/mesero']);
   }
 }
 
