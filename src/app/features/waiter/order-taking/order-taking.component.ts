@@ -16,39 +16,36 @@ import { Product } from '../../../shared/interfaces';
       
       <!-- Panel Izquierdo: Catálogo de Menú -->
       <div class="flex-1 flex flex-col min-h-0">
-        <!-- Header del Menú -->
-        <div class="mb-4 shrink-0 flex items-center justify-between">
-          <h2 class="text-xl font-bold text-dark-800 dark:text-white flex items-center gap-2">
-            Menú Principal
-          </h2>
-          <!-- Mesa Info Mobile -->
-          <div class="lg:hidden bg-primary-50 text-primary-700 px-3 py-1 rounded-full text-sm font-bold border border-primary-200">
+        <!-- Categorías dentro de una card larga -->
+        <div class="mb-4 shrink-0 flex items-center gap-2">
+          <div class="flex-1 min-w-0 bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-sm p-2">
+            <div class="flex overflow-x-auto gap-2 snap-x hide-scrollbar">
+              <button
+                (click)="selectedCategory.set('todos')"
+                class="snap-start shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 whitespace-nowrap"
+                [class]="selectedCategory() === 'todos'
+                  ? 'bg-dark-800 text-white shadow-sm'
+                  : 'bg-dark-50 dark:bg-dark-900 text-dark-500 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700'"
+              >
+                Todos
+              </button>
+              @for (cat of productService.getCategories(); track cat) {
+                <button
+                  (click)="selectedCategory.set(cat)"
+                  class="snap-start shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 whitespace-nowrap"
+                  [class]="selectedCategory() === cat
+                    ? 'bg-dark-800 text-white shadow-sm'
+                    : 'bg-dark-50 dark:bg-dark-900 text-dark-500 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700'"
+                >
+                  {{ productService.getCategoryLabel(cat) }}
+                </button>
+              }
+            </div>
+          </div>
+          <!-- Mesa (solo móvil) -->
+          <div class="lg:hidden shrink-0 bg-primary-50 text-primary-700 px-3 py-2 rounded-xl text-sm font-bold border border-primary-200">
             Mesa {{ currentTable()?.numero_mesa }}
           </div>
-        </div>
-
-        <!-- Filtros de Categoría (Scroll horizontal) -->
-        <div class="flex overflow-x-auto pb-4 mb-2 shrink-0 gap-2 snap-x hide-scrollbar">
-          <button
-            (click)="selectedCategory.set('todos')"
-            class="snap-start shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap"
-            [class]="selectedCategory() === 'todos'
-              ? 'bg-dark-800 text-white shadow-md'
-              : 'bg-white dark:bg-dark-800 text-dark-500 dark:text-dark-300 border border-dark-200 dark:border-dark-700 hover:bg-dark-50 dark:hover:bg-dark-700'"
-          >
-            Todos
-          </button>
-          @for (cat of productService.getCategories(); track cat) {
-            <button
-              (click)="selectedCategory.set(cat)"
-              class="snap-start shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap"
-              [class]="selectedCategory() === cat
-                ? 'bg-dark-800 text-white shadow-md'
-                : 'bg-white dark:bg-dark-800 text-dark-500 dark:text-dark-300 border border-dark-200 dark:border-dark-700 hover:bg-dark-50 dark:hover:bg-dark-700'"
-            >
-              {{ productService.getCategoryLabel(cat) }}
-            </button>
-          }
         </div>
 
         <!-- Grid de Productos -->
