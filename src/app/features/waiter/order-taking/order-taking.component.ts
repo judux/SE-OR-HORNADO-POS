@@ -16,35 +16,29 @@ import { Product } from '../../../shared/interfaces';
       
       <!-- Panel Izquierdo: Catálogo de Menú -->
       <div class="flex-1 flex flex-col min-h-0">
-        <!-- Categorías dentro de una card larga -->
-        <div class="mb-4 shrink-0 flex items-center gap-2">
-          <div class="flex-1 min-w-0 bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-sm p-2">
-            <div class="flex overflow-x-auto gap-2 snap-x hide-scrollbar">
+        <!-- Categorías dentro de una card larga (a todo el ancho) -->
+        <div class="mb-4 shrink-0 bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-sm p-2">
+          <div class="flex overflow-x-auto gap-2 snap-x hide-scrollbar">
+            <button
+              (click)="selectedCategory.set('todos')"
+              class="snap-start shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 whitespace-nowrap"
+              [class]="selectedCategory() === 'todos'
+                ? 'bg-dark-800 text-white shadow-sm'
+                : 'bg-dark-50 dark:bg-dark-900 text-dark-500 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700'"
+            >
+              Todos
+            </button>
+            @for (cat of productService.getCategories(); track cat) {
               <button
-                (click)="selectedCategory.set('todos')"
+                (click)="selectedCategory.set(cat)"
                 class="snap-start shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 whitespace-nowrap"
-                [class]="selectedCategory() === 'todos'
+                [class]="selectedCategory() === cat
                   ? 'bg-dark-800 text-white shadow-sm'
                   : 'bg-dark-50 dark:bg-dark-900 text-dark-500 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700'"
               >
-                Todos
+                {{ productService.getCategoryLabel(cat) }}
               </button>
-              @for (cat of productService.getCategories(); track cat) {
-                <button
-                  (click)="selectedCategory.set(cat)"
-                  class="snap-start shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 whitespace-nowrap"
-                  [class]="selectedCategory() === cat
-                    ? 'bg-dark-800 text-white shadow-sm'
-                    : 'bg-dark-50 dark:bg-dark-900 text-dark-500 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700'"
-                >
-                  {{ productService.getCategoryLabel(cat) }}
-                </button>
-              }
-            </div>
-          </div>
-          <!-- Mesa (solo móvil) -->
-          <div class="lg:hidden shrink-0 bg-primary-50 text-primary-700 px-3 py-2 rounded-xl text-sm font-bold border border-primary-200">
-            Mesa {{ currentTable()?.numero_mesa }}
+            }
           </div>
         </div>
 
