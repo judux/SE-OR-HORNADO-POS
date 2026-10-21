@@ -7,7 +7,7 @@ import { OrderService } from '../../../core/services/order.service';
 import { TableService } from '../../../core/services/table.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
-import { Product } from '../../../shared/interfaces';
+import { OrderItem, Product } from '../../../shared/interfaces';
 
 @Component({
   selector: 'app-order-taking',
@@ -141,7 +141,7 @@ import { Product } from '../../../shared/interfaces';
               <p class="text-xs text-dark-400">Toca cualquier producto del menú para comenzar a armar el pedido.</p>
             </div>
           } @else {
-            @for (item of orderService.items(); track item.line_id ?? $index) {
+            @for (item of orderService.items(); track trackLine($index, item)) {
               @if (item.enviado) {
                 <!-- 🔒 Item ya enviado a caja — BLOQUEADO -->
                 <div class="bg-dark-100/50 dark:bg-dark-900/40 border border-dark-200/60 dark:border-dark-700/60 p-3.5 rounded-2xl opacity-75">
@@ -337,6 +337,11 @@ export class OrderTakingComponent {
   private confirmDialog = inject(ConfirmDialogService);
 
   selectedCategory = signal<string>('todos');
+
+  // Las líneas se identifican por line_id; las antiguas sin id usan su posición
+  trackLine(index: number, item: OrderItem): string {
+    return item.line_id ?? `idx_${index}`;
+  }
 
   // UI State
   isCartOpenMobile = signal<boolean>(false);

@@ -6,7 +6,7 @@ import { ProductService } from '../../../core/services/product.service';
 import { PettyCashService } from '../../../core/services/petty-cash.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
-import { Order, Product } from '../../../shared/interfaces';
+import { Order, OrderItem, Product } from '../../../shared/interfaces';
 
 @Component({
   selector: 'app-cashier-dashboard',
@@ -355,7 +355,7 @@ import { Order, Product } from '../../../shared/interfaces';
               </h4>
               
               <div class="space-y-2">
-                @for (item of selectedOrder()?.items; track item.line_id ?? $index) {
+                @for (item of selectedOrder()?.items; track trackLine($index, item)) {
                   <div class="flex justify-between items-center text-xs py-1 border-b border-dark-50 dark:border-dark-700/40">
                     <div class="flex items-center gap-2 flex-1 pr-2">
                       <button (click)="removeItem(item.line_id)" class="text-dark-300 hover:text-red-500 transition-colors" title="Eliminar ítem">
@@ -598,6 +598,11 @@ export class CashierDashboardComponent implements OnDestroy {
   private confirmDialog = inject(ConfirmDialogService);
 
   orders = this.orderService.getOrdersForCashier;
+
+  // Las líneas se identifican por line_id; las antiguas sin id usan su posición
+  trackLine(index: number, item: OrderItem): string {
+    return item.line_id ?? `idx_${index}`;
+  }
 
   // View State
   activeTab = signal<'tickets' | 'reportes' | 'cajaChica' | 'cierre'>('tickets');
