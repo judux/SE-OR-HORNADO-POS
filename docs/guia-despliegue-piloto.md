@@ -1,69 +1,52 @@
-# Guía: poner en marcha la plataforma y un restaurante
+# Guía de uso: plataforma, restaurantes y personal
 
-> Todo se hace **desde la app**. No hace falta entrar a la consola de Firebase.
-> El despliegue (subir la versión nueva) lo hace Claude con la CLI de Firebase.
+> Todo se hace desde la app. No hace falta entrar a la consola de Firebase. El despliegue lo hace Claude (`npm run deploy`).
+> **Requisito (una sola vez):** en Firebase Authentication deben estar habilitados los proveedores **Google** y **Anónimo**.
 
-## Cómo está organizado
+## Quién entra y cómo
 
-| Quién | Dónde entra | Qué hace |
+| Quién | Dónde | Cómo |
 |---|---|---|
-| **Dueño de la plataforma** (tú) | `/plataforma` con su correo y contraseña | Crea restaurantes, su cuenta y su primer administrador; suspende o reactiva restaurantes |
-| **Equipo del restaurante** (celular, tablet o PC) | `/activar`, una sola vez, con la cuenta del restaurante | Queda vinculado a ese restaurante |
-| **Personal** (admin, cajero o mesero) | PIN de 4 dígitos en un equipo activado | Trabaja solo con los datos de **su** restaurante |
+| **Tú** (dueño de la plataforma) | `https://senor-hornado-pos-8412.web.app/plataforma` (ningún botón lleva ahí) | Con tu cuenta de Google |
+| **Dueño o admin de un restaurante** | El enlace de registro que le envías (`/registro`) y luego la dirección normal de la app | Con su cuenta de Google. La primera vez crea su PIN; después solo se le pide el PIN |
+| **Meseros y cajeros** | El enlace único de su restaurante, que les comparte el admin | Sin cuenta de Google: abren el enlace y entran con el PIN que el admin les creó |
 
-## 1. Reclamar la plataforma (una sola vez, en cuanto se despliegue)
+## 1. Reclamar la plataforma (una sola vez)
 
-1. Abre `https://senor-hornado-pos-8412.web.app/plataforma`.
-2. Elige **"Primera vez"** y escribe tu nombre, tu correo y una contraseña de al menos 8 caracteres.
-3. Pulsa **Crear cuenta de dueño**. Esto solo funciona una vez: después nadie más puede reclamar la plataforma.
+1. Abre `/plataforma` y pulsa **Continuar con Google**.
+2. Pulsa **Ser el dueño de la plataforma**. Después de esto nadie más puede reclamarla.
 
-> Hazlo justo después del despliegue. Mientras la plataforma no tenga dueño, cualquiera que conozca la dirección podría reclamarla primero.
+## 2. Registrar un restaurante
 
-## 2. Crear un restaurante
+1. En tu panel, copia el **enlace de registro** y envíaselo al dueño del restaurante. Tú también lo puedes usar para registrar Señor Hornado.
+2. Él entra con Google y llena el nombre del restaurante y el suyo. Queda "en revisión".
+3. En tu panel aparece en **Solicitudes pendientes** → **Aprobar**. Puedes ajustar los nombres y, solo para Señor Hornado, marcar **"Copiar el menú y las mesas de la versión anterior"**.
+4. Él vuelve a entrar con Google, **crea su PIN** escribiéndolo dos veces y queda en su panel de administración.
 
-En el panel, pulsa **Nuevo restaurante** y completa:
-- **Nombre:** por ejemplo "Señor Hornado".
-- **Cuenta para activar sus equipos:** un correo (no tiene que existir de verdad) y una contraseña de 8 o más caracteres. Esta cuenta es la que el restaurante usa en sus celulares y en la caja.
-- **Administrador:** su nombre y un PIN de 4 dígitos.
-- **Copiar el menú y las mesas de la versión anterior:** márcalo solo para Señor Hornado. Copia los productos y mesas que ya existían.
+## 3. El admin incorpora a su personal
 
-## 3. Activar los equipos del restaurante
-
-En cada celular de mesero y en la caja:
-1. Abre `https://senor-hornado-pos-8412.web.app`.
-2. Escribe el correo y la contraseña **de la cuenta del restaurante**.
-3. **Instala la app:**
-   - Android (Chrome): menú ⋮ → *Agregar a pantalla principal*.
-   - iPhone (Safari): compartir → *Agregar a inicio*.
-4. Entra con el PIN. En la caja, toca **"activar el sonido"**.
-
-## 4. El admin del restaurante crea a su personal
-
-Con su PIN, el administrador entra a **Usuarios → Nuevo usuario** y crea a sus meseros y cajeros, cada uno con su propio PIN. En **Menú** y **Mesas** ajusta productos, precios y mesas.
-
-## 5. Ensayo general
-
-Recorre el guion de `docs/piloto-2026-10-24.md` en los dispositivos reales.
-
----
+1. En **Usuarios → Nuevo usuario** crea a cada mesero y cajero con su PIN.
+2. En la misma pantalla está el **enlace para tu personal**: **Copiar** o **Compartir** (por ejemplo, por WhatsApp).
+3. Cada empleado abre el enlace en su celular → su celular queda vinculado a **ese** restaurante → entra con su PIN.
+4. Si el enlace se filtra: **Generar enlace nuevo**. El viejo deja de servir para celulares nuevos; los que ya están vinculados siguen funcionando.
 
 ## Si algo sale mal
 
 | Problema | Qué hacer |
 |---|---|
-| "La cuenta … no pertenece a ningún restaurante" | Se activó con una cuenta antigua (por ejemplo `equipos@senorhornado.app`). Pulsa "Usar otra" y entra con la cuenta del restaurante |
-| "Restaurante suspendido" | Reactívalo desde `/plataforma` |
-| El admin olvidó su PIN | En `/plataforma`, en el restaurante, pulsa **Agregar administrador** y crea uno nuevo |
-| "PIN incorrecto" | El PIN no existe en **ese** restaurante: los PINs de un restaurante no sirven en otro |
-| Hay que volver a la versión anterior | Pídeselo a Claude, o en la consola: **Hosting → Historial de versiones → Revertir** |
+| La app se ve como la versión anterior | Ciérrala y vuelve a abrirla (el celular guarda la versión anterior hasta recargar) |
+| "Enlace no válido" | El admin generó uno nuevo o el restaurante está suspendido: pide el enlace actual |
+| El admin olvidó su PIN | En tu panel, en su restaurante: **Restablecer PIN del admin**. Al entrar con Google elige uno nuevo |
+| Un empleado olvidó su PIN | El admin lo cambia en **Usuarios** |
+| "Restaurante suspendido" | Reactívalo desde tu panel |
+| "PIN incorrecto" | Los PINs de un restaurante no sirven en otro; revisa que el celular esté vinculado al restaurante correcto |
+| Volver a la versión anterior | Pídeselo a Claude o, en la consola, **Hosting → Historial de versiones → Revertir** |
 
-## Probar en tu PC sin tocar producción (para desarrollo)
+## Para desarrollo (emulador local)
 
 ```bash
 npm run emulators
 ```
-
-En otra terminal:
 
 ```bash
 node scripts/seed-emulator.mjs --demo
@@ -73,12 +56,14 @@ node scripts/seed-emulator.mjs --demo
 npm run start:emu
 ```
 
-Abre `http://localhost:4200`. Todas las cuentas de la demo usan la contraseña `clave-de-prueba-123`:
+En el emulador, las pantallas de inicio de sesión tienen además **"Solo pruebas: entrar con correo"**, que no aparece en producción. Todas las cuentas de la demo usan la contraseña `clave-de-prueba-123`:
 
-| Cuenta | Uso | PINs |
-|---|---|---|
-| `dueno@prueba.app` | `/plataforma` | — |
-| `caja@prueba.app` | Señor Hornado | admin 4821, mesero 1111, cajero 2222 |
-| `asadero@prueba.app` | Asadero Prueba | admin 4821 |
+| Cuenta | Uso |
+|---|---|
+| `dueno@prueba.app` | Dueño de la plataforma |
+| `johan@prueba.app` | Admin de Señor Hornado (PIN 4821) |
+| `pedro@prueba.app` | Solicitud pendiente "Parrilla Don Pedro" |
 
-Las reglas se prueban con `npm run test:rules` (35 casos). Ese comando borra los datos del emulador.
+El enlace del personal de Señor Hornado en la demo es `/unirse/senor-hornado-demo/demo-codigo-senor-hornado-123456`.
+
+`npm run verify` revisa todo (build, pruebas unitarias y reglas). `npm run deploy` verifica y solo despliega si todo pasa.

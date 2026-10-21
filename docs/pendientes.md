@@ -31,10 +31,14 @@ Blaze cobra por uso, pero mantiene las mismas cuotas gratis. Hay que poner alert
 - **Texto de notas con poco contraste** en la ventana de producto del mesero.
 - **Proyecto de pruebas separado** (`-dev`) en Firebase, además del emulador local.
 - **Aviso de 'versión nueva' de la PWA:** en la prueba del 21 de octubre el Service Worker descargó la versión nueva sin mostrar el aviso. Recargar o reabrir la app sí la toma. Hay que revisarlo en un celular real; mientras tanto, después de cada despliegue se cierra y se vuelve a abrir la app.
+- **Probar en celulares reales el ingreso con Google:** sobre todo en iPhone con la app instalada en la pantalla de inicio, donde las ventanas emergentes de Google a veces fallan. Si pasa, se cambia a `signInWithRedirect` con el dominio de autenticación propio.
+- **Proveedor Anónimo:** no se pudo comprobar en producción sin crear una cuenta. Se comprueba la primera vez que un mesero abra el enlace del restaurante.
+- **Lista de celulares vinculados por restaurante**, para que el admin pueda desvincular uno perdido. Hoy, generar un enlace nuevo solo evita celulares nuevos.
+- **Celulares anónimos que nunca se usaron:** quedan como cuentas sin uso en Authentication. Limpiarlas requiere Admin SDK (sección A).
 - **Verificación del equipo más rápida al abrir:** hoy tarda 2–4 s porque espera Firebase Auth y dos lecturas (`platform_admins` y `devices`). Se puede guardar el último resultado en el dispositivo y verificarlo en segundo plano.
 - **Logo propio por restaurante:** hoy se muestra el nombre en texto. Subir imágenes requiere Cloud Storage, que desde febrero de 2026 exige Blaze, así que va en la sección A.
 - **Nombre y marca del producto:** la PWA se llama "Sistema POS Restaurantes" de forma provisional.
-- **Cuenta antigua `equipos@senorhornado.app`:** quedó sin uso, porque no pertenece a ningún restaurante y no tiene acceso. Se puede borrar desde la consola de Authentication cuando quieras.
+- **Cuentas antiguas de correo (`equipos@senorhornado.app` y las que se hayan creado con el flujo de correo y contraseña):** quedó sin uso, porque no pertenece a ningún restaurante y no tiene acceso. Se puede borrar desde la consola de Authentication cuando quieras.
 - **Más de un administrador de plataforma** (por ejemplo, un socio o soporte): hoy solo existe el dueño.
 - **Editar el nombre de un restaurante y cambiar la contraseña de su cuenta** desde el panel de plataforma. Hoy solo se puede crear, suspender, reactivar y agregar administradores.
 
