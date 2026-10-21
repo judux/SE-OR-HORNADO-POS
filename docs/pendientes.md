@@ -40,6 +40,7 @@ Blaze cobra por uso, pero mantiene las mismas cuotas gratis. Hay que poner alert
 - **Dominio propio** (por ejemplo `kinopos.com`): hoy la app está en `kino-pos.web.app`, gratis. Un dominio cuesta la compra anual y se conecta en Hosting sin pagar Blaze.
 - **Nombre en la ventana de Google:** al ingresar con Google aparece `senor-hornado-pos-8412.firebaseapp.com`. Para que diga KINO-POS hay que cambiar el nombre público del proyecto en la consola (Configuración del proyecto) y, para el dominio, usar uno propio.
 - **Cuentas antiguas de correo (`equipos@senorhornado.app` y las que se hayan creado con el flujo de correo y contraseña):** quedó sin uso, porque no pertenece a ningún restaurante y no tiene acceso. Se puede borrar desde la consola de Authentication cuando quieras.
+- **Un dueño con varios restaurantes en la misma cuenta de Google:** hoy cada cuenta administra un solo restaurante, porque el equipo queda vinculado a uno. Para varios locales habría que agregar un selector de restaurante.
 - **Más de un administrador de plataforma** (por ejemplo, un socio o soporte): hoy solo existe el dueño.
 - **Editar el nombre de un restaurante y cambiar la contraseña de su cuenta** desde el panel de plataforma. Hoy solo se puede crear, suspender, reactivar y agregar administradores.
 

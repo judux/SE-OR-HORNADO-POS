@@ -68,6 +68,25 @@ import { Solicitud } from '../../../shared/interfaces';
               </div>
             }
 
+            @case ('vinculado') {
+              <div class="text-center">
+                <span class="material-symbols-rounded text-5xl text-primary-400">link</span>
+                <h2 class="text-white font-extrabold mt-2">Este navegador ya tiene una cuenta</h2>
+                @if (tenant.account().kind === 'platform') {
+                  <p class="text-dark-300 text-sm mt-1">Entraste como <strong class="text-white">dueño de la plataforma</strong>{{ tenant.account().email ? ' (' + tenant.account().email + ')' : '' }}.</p>
+                } @else {
+                  <p class="text-dark-300 text-sm mt-1">Está vinculado a <strong class="text-white">{{ tenant.restaurant()?.nombre || 'un restaurante' }}</strong>{{ tenant.account().email ? ' con ' + tenant.account().email : '' }}.</p>
+                }
+                <p class="text-dark-400 text-xs mt-3">Cada cuenta de Google administra un solo restaurante. Para registrar otro, usa una cuenta de Google distinta.</p>
+                <button (click)="continueLinked()" class="w-full mt-6 py-3 rounded-2xl bg-primary-500 hover:bg-primary-600 text-white text-sm font-bold">
+                  {{ tenant.account().kind === 'platform' ? 'Ir al panel de la plataforma' : 'Ir a mi restaurante' }}
+                </button>
+                @if (isStaffDevice()) {
+                  <p class="text-dark-400 text-xs mt-4">Este equipo es del personal. Para registrar un restaurante, abre el enlace en otro navegador o en una ventana de incógnito.</p>
+                }
+              </div>
+            }
+
             @case ('rechazada') {
               <div class="text-center">
                 <span class="material-symbols-rounded text-5xl text-red-400">cancel</span>
@@ -77,7 +96,7 @@ import { Solicitud } from '../../../shared/interfaces';
             }
           }
 
-          @if (view() !== 'entrar' && view() !== 'cargando') {
+          @if (view() !== 'entrar' && view() !== 'cargando' && !isStaffDevice()) {
             <button (click)="signOut()" class="w-full mt-4 py-2 text-dark-400 hover:text-dark-200 text-xs">Usar otra cuenta de Google</button>
           }
         </div>
@@ -90,7 +109,7 @@ export class RegistroComponent {
   private solicitudes = inject(SolicitudService);
   private router = inject(Router);
 
-  view = signal<'cargando' | 'entrar' | 'formulario' | 'pendiente' | 'rechazada'>('cargando');
+  view = signal<'cargando' | 'entrar' | 'formulario' | 'pendiente' | 'rechazada' | 'vinculado'>('cargando');
   solicitud = signal<Solicitud | null>(null);
   nombreRestaurante = '';
   nombreContacto = '';
@@ -105,8 +124,8 @@ export class RegistroComponent {
   async load(): Promise<void> {
     this.view.set('cargando');
     const account = await this.tenant.whenResolved();
-    if (account.kind === 'device') { this.router.navigate(['/login']); return; }
-    if (account.kind === 'platform') { this.router.navigate(['/plataforma/panel']); return; }
+    // Ya tiene cuenta: no se lo lleva a otra parte sin explicarle, por si quiere registrar otro restaurante
+    if (account.kind === 'device' || account.kind === 'platform') { this.view.set('vinculado'); return; }
     const user = this.tenant.currentUser();
     if (account.kind === 'none' || !user || user.isAnonymous) { this.view.set('entrar'); return; }
 
@@ -142,6 +161,15 @@ export class RegistroComponent {
     } finally {
       this.sending.set(false);
     }
+  }
+
+  /** Celular del personal (vinculado con el enlace, sin Google): cerrar sesión lo desvincularía del restaurante. */
+  isStaffDevice(): boolean {
+    return this.tenant.account().kind === 'device' && !!this.tenant.currentUser()?.isAnonymous;
+  }
+
+  continueLinked(): void {
+    this.router.navigate([this.tenant.account().kind === 'platform' ? '/plataforma/panel' : '/login']);
   }
 
   async signOut(): Promise<void> {

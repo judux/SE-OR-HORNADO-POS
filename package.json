@@ -7,7 +7,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "emulators": "firebase emulators:start --project demo-senor-hornado",
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-senor-hornado",
     "seed:emu": "node scripts/seed-emulator.mjs",
     "start:emu": "ng serve --configuration emulator",
     "test:rules": "node scripts/test-rules-emulator.mjs",
