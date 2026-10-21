@@ -141,7 +141,7 @@ import { Product } from '../../../shared/interfaces';
               <p class="text-xs text-dark-400">Toca cualquier producto del menú para comenzar a armar el pedido.</p>
             </div>
           } @else {
-            @for (item of orderService.items(); track $index) {
+            @for (item of orderService.items(); track item.line_id ?? $index) {
               @if (item.enviado) {
                 <!-- 🔒 Item ya enviado a caja — BLOQUEADO -->
                 <div class="bg-dark-100/50 dark:bg-dark-900/40 border border-dark-200/60 dark:border-dark-700/60 p-3.5 rounded-2xl opacity-75">
@@ -175,11 +175,11 @@ import { Product } from '../../../shared/interfaces';
                   }
                   <div class="flex items-center justify-between mt-2 pt-2 border-t border-dark-100 dark:border-dark-700/40">
                     <div class="flex items-center gap-1 bg-dark-100/80 dark:bg-dark-900/60 rounded-xl p-1">
-                      <button (click)="orderService.updateQuantity($index, -1)" class="w-7 h-7 rounded-lg bg-white dark:bg-dark-700 flex items-center justify-center text-dark-700 dark:text-dark-200 font-bold shadow-xs active:scale-90 transition-transform hover:text-red-500">
+                      <button (click)="orderService.updateQuantity(item.line_id!, -1)" class="w-7 h-7 rounded-lg bg-white dark:bg-dark-700 flex items-center justify-center text-dark-700 dark:text-dark-200 font-bold shadow-xs active:scale-90 transition-transform hover:text-red-500">
                         <span class="material-symbols-rounded text-base">{{ item.cantidad === 1 ? 'delete' : 'remove' }}</span>
                       </button>
                       <span class="w-7 text-center font-extrabold text-xs text-dark-900 dark:text-white">{{ item.cantidad }}</span>
-                      <button (click)="orderService.updateQuantity($index, 1)" class="w-7 h-7 rounded-lg bg-white dark:bg-dark-700 flex items-center justify-center text-dark-700 dark:text-dark-200 font-bold shadow-xs active:scale-90 transition-transform hover:text-emerald-500">
+                      <button (click)="orderService.updateQuantity(item.line_id!, 1)" class="w-7 h-7 rounded-lg bg-white dark:bg-dark-700 flex items-center justify-center text-dark-700 dark:text-dark-200 font-bold shadow-xs active:scale-90 transition-transform hover:text-emerald-500">
                         <span class="material-symbols-rounded text-base">add</span>
                       </button>
                     </div>
@@ -345,9 +345,7 @@ export class OrderTakingComponent {
   productNote = signal<string>('');
   isSending = signal<boolean>(false);
 
-  hasNewItems = computed(() => {
-    return this.orderService.items().some(item => !item.enviado);
-  });
+  hasNewItems = this.orderService.hasNewItems;
 
   isOrderPending = computed(() => {
     const tableId = this.orderService.currentTable();
@@ -378,7 +376,7 @@ export class OrderTakingComponent {
   }
 
   async goBack(): Promise<void> {
-    if (this.orderService.items().length > 0) {
+    if (this.hasNewItems()) {
       const confirm = await this.confirmDialog.confirm({
         title: '¿Descartar pedido?',
         message: 'Hay productos agregados a esta comanda. Si vuelves atrás sin enviar, se perderán.',
@@ -419,15 +417,7 @@ export class OrderTakingComponent {
       const note = this.productNote().trim();
       const qty = this.productQuantity();
 
-      this.orderService.addToCart(product, note);
-
-      if (qty > 1) {
-        const items = this.orderService.items();
-        const lastIndex = items.findIndex(i => i.id_producto === product.id && i.notas === note);
-        if (lastIndex > -1) {
-          this.orderService.updateQuantity(lastIndex, qty - 1);
-        }
-      }
+      this.orderService.addToCart(product, note, qty);
 
       this.toast.show({
         message: `+${qty} ${product.nombre} agregado`,

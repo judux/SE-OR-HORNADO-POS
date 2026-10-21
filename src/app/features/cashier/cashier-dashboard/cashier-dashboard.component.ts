@@ -355,10 +355,10 @@ import { Order, Product } from '../../../shared/interfaces';
               </h4>
               
               <div class="space-y-2">
-                @for (item of selectedOrder()?.items; track $index; let idx = $index) {
+                @for (item of selectedOrder()?.items; track item.line_id ?? $index) {
                   <div class="flex justify-between items-center text-xs py-1 border-b border-dark-50 dark:border-dark-700/40">
                     <div class="flex items-center gap-2 flex-1 pr-2">
-                      <button (click)="removeItem(idx)" class="text-dark-300 hover:text-red-500 transition-colors" title="Eliminar ítem">
+                      <button (click)="removeItem(item.line_id)" class="text-dark-300 hover:text-red-500 transition-colors" title="Eliminar ítem">
                         <span class="material-symbols-rounded text-sm">delete</span>
                       </button>
                       <span class="font-black text-amber-600 dark:text-amber-400">{{ item.cantidad }}x</span>
@@ -650,8 +650,13 @@ export class CashierDashboardComponent implements OnDestroy {
       .slice(0, 10);
   });
 
-  // Modal State - Cobro
-  selectedOrder = signal<Order | null>(null);
+  // Modal State - Cobro (la orden se lee EN VIVO para que el total siempre sea el real)
+  private selectedOrderId = signal<string | null>(null);
+  selectedOrder = computed<Order | null>(() => {
+    const id = this.selectedOrderId();
+    if (!id) return null;
+    return this.orderService.getAllActiveOrders().find(o => o.id === id) ?? null;
+  });
   paymentMethod = signal<'efectivo' | 'transferencia'>('efectivo');
   billeteRecibido = signal<number>(0);
   // Billetes colombianos (COP) para el cobro rápido en efectivo
@@ -714,18 +719,18 @@ export class CashierDashboardComponent implements OnDestroy {
   }
 
   openPaymentModal(order: Order): void {
-    this.selectedOrder.set(order);
+    this.selectedOrderId.set(order.id);
     this.paymentMethod.set('efectivo');
     this.billeteRecibido.set(0);
   }
 
   closePaymentModal(): void {
-    this.selectedOrder.set(null);
+    this.selectedOrderId.set(null);
   }
 
-  async removeItem(itemIndex: number): Promise<void> {
+  async removeItem(lineId: string | undefined): Promise<void> {
     const order = this.selectedOrder();
-    if (!order) return;
+    if (!order || !lineId) return;
     
     const confirm = await this.confirmDialog.confirm({
       title: '¿Eliminar producto?',
@@ -736,17 +741,12 @@ export class CashierDashboardComponent implements OnDestroy {
     });
     if (!confirm) return;
 
-    await this.orderService.removeItemFromOrder(order.id, itemIndex);
-    this.toast.show({ message: 'Producto eliminado del ticket', type: 'info', duration: 2000 });
-    
-    setTimeout(() => {
-      const updatedOrder = this.orderService.getOrderByTable(order.id_mesa);
-      if (updatedOrder && updatedOrder.items.length > 0) {
-        this.selectedOrder.set({ ...updatedOrder });
-      } else {
-        this.closePaymentModal();
-      }
-    }, 500);
+    const removed = await this.orderService.removeItemFromOrder(order.id, lineId);
+    if (removed) {
+      this.toast.show({ message: 'Producto eliminado del ticket', type: 'info', duration: 2000 });
+    } else {
+      this.toast.show({ message: 'No se pudo eliminar el producto. Intenta de nuevo.', type: 'error', icon: 'error' });
+    }
   }
 
   async confirmPayment(): Promise<void> {

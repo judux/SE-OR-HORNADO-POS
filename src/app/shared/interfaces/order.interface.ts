@@ -1,10 +1,13 @@
 export interface OrderItem {
+    line_id?: string; // Identificador único de la línea (evita duplicados y permite borrar una línea exacta)
     id_producto: string;
     nombre_producto: string;
     cantidad: number;
     precio_unitario: number;
     notas?: string;
     enviado?: boolean; // 🔒 true = ya sincronizado con caja, no editable por mesero
+    agregado_por?: string; // id del usuario que agregó la línea
+    agregado_en?: number; // milisegundos desde epoch
 }
 
 export interface Order {
@@ -22,4 +25,5 @@ export interface Order {
     metodo_pago?: 'efectivo' | 'tarjeta' | 'transferencia';
     fecha_creacion: Date;
     fecha_cierre?: Date;
+    actualizado_en?: Date; // última vez que el mesero envió cambios
 }

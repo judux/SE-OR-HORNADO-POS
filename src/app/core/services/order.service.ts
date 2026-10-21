@@ -1,19 +1,22 @@
 import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
 import {
     Firestore, collection, collectionData, doc,
-    addDoc, updateDoc, deleteDoc, setDoc, Timestamp, writeBatch
+    addDoc, updateDoc, deleteDoc, Timestamp, writeBatch, runTransaction, DocumentReference
 } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
 import { Product, OrderItem, Order } from '../../shared/interfaces';
 import { TableService } from './table.service';
 import { AuthService } from '../auth/auth.service';
+import {
+    addProductToNewLines, changeNewLineQuantity, mergeLines, sumItems, countItems
+} from './order.logic';
 
 @Injectable({
     providedIn: 'root'
 })
 export class OrderService implements OnDestroy {
-    // Estado del pedido actual (carrito del mesero — local, no en la nube)
-    private currentItems = signal<OrderItem[]>([]);
+    // Líneas NUEVAS del mesero (solo en este dispositivo hasta que se envían)
+    private newLines = signal<OrderItem[]>([]);
     private tableId = signal<string | null>(null);
 
     // Lista de órdenes activas desde Firestore (tiempo real)
@@ -30,16 +33,23 @@ export class OrderService implements OnDestroy {
     private historySubscription: Subscription;
 
     // Señales derivadas (computed)
-    readonly items = this.currentItems.asReadonly();
     readonly currentTable = this.tableId.asReadonly();
 
-    readonly totalQuantity = computed(() => {
-        return this.currentItems().reduce((sum, item) => sum + item.cantidad, 0);
+    // Líneas ya enviadas: se leen EN VIVO de Firestore (sobreviven a recargas de página)
+    private readonly sentLines = computed<OrderItem[]>(() => {
+        const tId = this.tableId();
+        if (!tId) return [];
+        return this.activeOrders()
+            .filter(o => o.id_mesa === tId)
+            .flatMap(o => o.items.map(item => ({ ...item, enviado: true })));
     });
 
-    readonly totalAmount = computed(() => {
-        return this.currentItems().reduce((sum, item) => sum + (item.precio_unitario * item.cantidad), 0);
-    });
+    // Comanda que ve el mesero = enviadas (🔒) + nuevas (editables)
+    readonly items = computed<OrderItem[]>(() => [...this.sentLines(), ...this.newLines()]);
+    readonly hasNewItems = computed(() => this.newLines().length > 0);
+
+    readonly totalQuantity = computed(() => countItems(this.items()));
+    readonly totalAmount = computed(() => sumItems(this.items()));
 
     constructor() {
         // Suscripción a órdenes activas en tiempo real
@@ -76,125 +86,112 @@ export class OrderService implements OnDestroy {
 
     // Establecer la mesa actual para el pedido
     setActiveTable(id: string | null): void {
-        this.tableId.set(id);
-        if (id === null) {
-            this.clearCart();
-        } else {
-            // Cargar items de la orden existente si la hay
-            const existingOrder = this.getOrderByTable(id);
-            if (existingOrder) {
-                // Marcar items existentes como enviados (candado 🔒)
-                this.currentItems.set(
-                    existingOrder.items.map(item => ({ ...item, enviado: true }))
-                );
-            } else {
-                this.clearCart();
-            }
+        // Al cambiar de mesa se descartan las líneas nuevas de la mesa anterior
+        if (id !== this.tableId()) {
+            this.newLines.set([]);
         }
+        this.tableId.set(id);
     }
 
-    addToCart(product: Product, note: string = ''): void {
-        this.currentItems.update(items => {
-            const existingItemIndex = items.findIndex(
-                item => item.id_producto === product.id && item.notas === note
-            );
-
-            if (existingItemIndex > -1) {
-                const updatedItems = [...items];
-                updatedItems[existingItemIndex] = {
-                    ...updatedItems[existingItemIndex],
-                    cantidad: updatedItems[existingItemIndex].cantidad + 1
-                };
-                return updatedItems;
-            }
-
-            const newItem: OrderItem = {
-                id_producto: product.id,
-                nombre_producto: product.nombre,
-                cantidad: 1,
-                precio_unitario: product.precio,
-                notas: note
-            };
-
-            return [...items, newItem];
-        });
+    addToCart(product: Product, note: string = '', quantity: number = 1): void {
+        this.newLines.update(lines => addProductToNewLines(lines, product, note, quantity));
     }
 
-    updateQuantity(index: number, delta: number): void {
-        this.currentItems.update(items => {
-            // 🔒 No permitir modificar items ya enviados
-            if (items[index]?.enviado) return items;
-
-            const updatedItems = [...items];
-            const newQuantity = updatedItems[index].cantidad + delta;
-
-            if (newQuantity <= 0) {
-                return updatedItems.filter((_, i) => i !== index);
-            }
-
-            updatedItems[index] = { ...updatedItems[index], cantidad: newQuantity };
-            return updatedItems;
-        });
+    // Solo afecta líneas nuevas: las enviadas (🔒) no están en newLines
+    updateQuantity(lineId: string, delta: number): void {
+        this.newLines.update(lines => changeNewLineQuantity(lines, lineId, delta));
     }
 
-    removeItem(index: number): void {
-        this.currentItems.update(items => {
-            if (items[index]?.enviado) return items;
-            return items.filter((_, i) => i !== index);
-        });
+    removeItem(lineId: string): void {
+        this.newLines.update(lines => lines.filter(l => l.line_id !== lineId));
     }
 
     clearCart(): void {
-        this.currentItems.set([]);
+        this.newLines.set([]);
     }
 
-    // Guardar orden (Nueva o Actualización) con su estado — ahora en Firestore
+    /**
+     * Envía las líneas nuevas de la mesa a Firestore dentro de una transacción.
+     * - Lee la orden actual EN EL SERVIDOR y le agrega solo las líneas nuevas (sin duplicar line_id),
+     *   así una recarga de página o un cambio simultáneo de la caja no borran nada.
+     * - La mesa guarda su orden abierta (id_orden_actual) para que dos meseros no creen dos órdenes.
+     */
     async saveOrder(estadoFinal: 'pendiente' | 'en_caja'): Promise<boolean> {
         const tId = this.tableId();
-        if (this.currentItems().length === 0 || !tId) return false;
+        if (!tId) return false;
 
-        // Marcar TODOS los items como enviados al guardar
-        const itemsToSave = this.currentItems().map(item => ({ ...item, enviado: true }));
-        const totalAmount = itemsToSave.reduce((sum, item) => sum + (item.precio_unitario * item.cantidad), 0);
+        const currentUser = this.authService.user();
+        const linesToSend: OrderItem[] = this.newLines().map(line => ({
+            ...line,
+            enviado: true,
+            agregado_por: currentUser?.id ?? 'desconocido',
+            agregado_en: Date.now()
+        }));
+        const knownOrderId = this.getOrderByTable(tId)?.id;
 
-        const existingOrder = this.activeOrders().find(o => o.id_mesa === tId);
+        if (linesToSend.length === 0 && !knownOrderId) return false;
+
+        const tableRef = doc(this.firestore, 'tables', tId);
 
         try {
-            if (existingOrder) {
-                // Actualizar orden existente en Firestore
-                const orderDoc = doc(this.firestore, 'orders', existingOrder.id);
-                await updateDoc(orderDoc, {
-                    items: itemsToSave,
-                    estado: estadoFinal,
-                    subtotal: totalAmount,
-                    total: totalAmount
-                });
-            } else {
-                // Crear nueva orden en Firestore
-                const currentUser = this.authService.user();
-                const codigoPago = this.generatePaymentCode();
-                const newOrder = {
+            await runTransaction(this.firestore, async (tx) => {
+                const tableSnap = await tx.get(tableRef);
+                if (!tableSnap.exists()) throw new Error(`La mesa ${tId} no existe`);
+                const tableData = tableSnap.data();
+
+                // Buscar la orden abierta: primero la registrada en la mesa, luego la que vemos en vivo
+                const candidateIds = [tableData['id_orden_actual'], knownOrderId]
+                    .filter((id, i, arr): id is string => !!id && arr.indexOf(id) === i);
+
+                let orderRef: DocumentReference | null = null;
+                let existingItems: OrderItem[] = [];
+                for (const id of candidateIds) {
+                    const ref = doc(this.firestore, 'orders', id);
+                    const snap = await tx.get(ref);
+                    if (snap.exists()) {
+                        orderRef = ref;
+                        existingItems = (snap.data()['items'] ?? []) as OrderItem[];
+                        break;
+                    }
+                }
+
+                if (orderRef) {
+                    const items = mergeLines(existingItems, linesToSend);
+                    const subtotal = sumItems(items);
+                    tx.update(orderRef, {
+                        items,
+                        estado: estadoFinal,
+                        subtotal,
+                        total: subtotal,
+                        actualizado_en: Timestamp.now()
+                    });
+                    tx.update(tableRef, { estado: 'ocupada', id_orden_actual: orderRef.id });
+                    return;
+                }
+
+                if (linesToSend.length === 0) throw new Error('No hay productos para crear la orden');
+
+                const newOrderRef = doc(collection(this.firestore, 'orders'));
+                const subtotal = sumItems(linesToSend);
+                tx.set(newOrderRef, {
                     id_mesa: tId,
-                    numero_mesa: Number(tId.replace('mesa_', '')),
-                    id_mesero: currentUser?.id ?? '1',
+                    numero_mesa: Number(tableData['numero_mesa'] ?? tId.replace('mesa_', '')),
+                    id_mesero: currentUser?.id ?? 'desconocido',
                     nombre_mesero: currentUser?.nombre ?? 'Desconocido',
-                    items: itemsToSave,
+                    items: linesToSend,
                     estado: estadoFinal,
-                    codigo_pago: codigoPago,
-                    subtotal: totalAmount,
+                    codigo_pago: this.generatePaymentCode(),
+                    subtotal,
                     propina: 0,
-                    total: totalAmount,
-                    fecha_creacion: Timestamp.now()
-                };
-                const ordersRef = collection(this.firestore, 'orders');
-                await addDoc(ordersRef, newOrder);
-            }
+                    total: subtotal,
+                    fecha_creacion: Timestamp.now(),
+                    actualizado_en: Timestamp.now()
+                });
+                tx.update(tableRef, { estado: 'ocupada', id_orden_actual: newOrderRef.id });
+            });
 
-            // Marcar la mesa como ocupada
-            await this.tableService.updateTableStatus(tId, 'ocupada');
-
-            // Limpiar carrito local
-            this.clearCart();
+            // Limpiar carrito local solo si el servidor confirmó
+            this.newLines.set([]);
             this.tableId.set(null);
             return true;
         } catch (error) {
@@ -266,21 +263,29 @@ export class OrderService implements OnDestroy {
     }
 
     // 🔒 Solo el cajero puede eliminar items de una orden ya enviada
-    async removeItemFromOrder(orderId: string, itemIndex: number): Promise<boolean> {
-        const order = this.activeOrders().find(o => o.id === orderId);
-        if (!order || itemIndex < 0 || itemIndex >= order.items.length) return false;
+    // Se borra por line_id (no por posición) y leyendo la orden en el servidor,
+    // así un envío simultáneo del mesero no hace reaparecer ni desaparecer otras líneas.
+    async removeItemFromOrder(orderId: string, lineId: string): Promise<boolean> {
+        if (!lineId) return false;
+        const orderDoc = doc(this.firestore, 'orders', orderId);
 
         try {
-            const newItems = order.items.filter((_, i) => i !== itemIndex);
-            const newSubtotal = newItems.reduce((sum, item) => sum + (item.precio_unitario * item.cantidad), 0);
+            return await runTransaction(this.firestore, async (tx) => {
+                const snap = await tx.get(orderDoc);
+                if (!snap.exists()) return false;
 
-            const orderDoc = doc(this.firestore, 'orders', orderId);
-            await updateDoc(orderDoc, {
-                items: newItems,
-                subtotal: newSubtotal,
-                total: newSubtotal
+                const items = (snap.data()['items'] ?? []) as OrderItem[];
+                const newItems = items.filter(item => item.line_id !== lineId);
+                if (newItems.length === items.length) return false;
+
+                const newSubtotal = sumItems(newItems);
+                tx.update(orderDoc, {
+                    items: newItems,
+                    subtotal: newSubtotal,
+                    total: newSubtotal
+                });
+                return true;
             });
-            return true;
         } catch (error) {
             console.error('Error al eliminar item de orden:', error);
             return false;
