@@ -7,6 +7,34 @@
 
 ---
 
+## Estado del Sprint 1 (actualizado el 20 de octubre de 2026, noche)
+
+| Tarea | Estado | Evidencia |
+|---|---|---|
+| T-01 Guardar el estado actual | ✅ Hecho | Commit `559d54d` y tag `pre-piloto` |
+| T-02 Quitar los PINs maestros | ✅ Hecho y verificado | P-01 |
+| T-04a Reglas de Firestore | ✅ Hecho y verificado | `npm run test:rules`: 10/10 |
+| T-04b Cuenta de dispositivo | ✅ Hecho y verificado | Pantalla `/activar`; flujo completo con las reglas cerradas |
+| T-05 Pedidos por líneas con ID | ✅ Hecho y verificado | P-03 a P-07 |
+| T-07 Cobro atómico e idempotente | ✅ Hecho y verificado | P-09, P-10, P-13, P-14, P-15 |
+| T-08 Turnos archivados sin borrado | ✅ Hecho y verificado | P-16, P-17 |
+| T-09 Billetes en COP | ✅ Hecho y verificado | P-09 |
+| T-10 Aviso de comandas | ✅ Hecho y verificado | Avisos de nueva y de actualizada |
+| T-11 Conexión honesta | ✅ Hecho y verificado | P-11 (sin red simulado) |
+| T-12 Limpieza menor | ✅ Hecho | — |
+| Extra | ✅ Aviso de versión nueva de la PWA; entorno de emulador (`npm run emulators`, `seed:emu`, `start:emu`) | — |
+| T-13 Datos reales | ⏳ Pendiente (requiere al dueño) | `docs/guia-despliegue-piloto.md`, pasos 1–2 y 6 |
+| T-14 Despliegue y activación | ⏳ Pendiente (requiere tu cuenta de Firebase) | Guía, pasos 4–5 |
+| T-15 Ensayo general | ⏳ Pendiente (viernes) | `docs/piloto-2026-10-24.md` |
+
+**Hallazgos nuevos durante la implementación** (no estaban en la auditoría inicial):
+- **A-28:** el aviso sonoro de comandas **nunca funcionó**. El `effect` escribía en un signal y Angular 18 lo bloquea (NG0600). Ya está corregido en T-10.
+- **A-29:** usar `track item.x ?? $index` compila pero falla al ejecutar en Angular 18 y deja vacía la lista de la comanda. Se detectó probando en el navegador, no con el build.
+- **A-30 (Sprint 2):**
+  - La caja no muestra las notas de preparación ("sin ensalada") en el detalle del cobro.
+  - Las fechas salen en inglés ("Tuesday, October 20"); falta registrar la configuración regional `es-CO`.
+  - El texto escrito en las notas se ve muy tenue.
+
 ## Contexto
 
 La app ya cubre casi todo el flujo del PRD: login por PIN, mesas, pedidos con candado, caja, unir y dividir cuentas, venta directa, caja chica y cierre de turno. Funciona en una demo, pero **todavía no es confiable para vender en un restaurante real**. Tiene tres tipos de problemas:

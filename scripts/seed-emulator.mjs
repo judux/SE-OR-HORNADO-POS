@@ -52,11 +52,24 @@ const products = [
     { id: 'p_agotado', nombre: 'Chicharrón (agotado)', precio: 9000, categoria: 'porciones', disponible: false, notas_permitidas: false },
 ];
 
+async function createDeviceAccount() {
+    // Cuenta de equipos de PRUEBA en el emulador de Auth (la real se crea en la consola de Firebase)
+    await fetch(`http://127.0.0.1:9099/emulator/v1/projects/${PROJECT}/accounts`, { method: 'DELETE' });
+    const res = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'equipos@senorhornado.app', password: 'clave-de-prueba-123', returnSecureToken: true })
+    });
+    if (!res.ok) throw new Error(`No se pudo crear la cuenta de equipos: ${res.status}`);
+}
+
 await wipe();
+await createDeviceAccount();
 for (const { id, ...u } of users) await put('users', id, u);
 for (const { id, ...p } of products) await put('products', id, p);
 for (let n = 1; n <= 6; n++) {
     await put('tables', `mesa_${n}`, { id: `mesa_${n}`, numero_mesa: n, capacidad: 4, estado: 'libre', id_orden_actual: null });
 }
 console.log(`Emulador listo: ${users.length} usuarios, ${products.length} productos, 6 mesas.`);
+console.log('Cuenta de equipos (solo emulador): equipos@senorhornado.app / clave-de-prueba-123');
 console.log('PINs de prueba (solo emulador): admin 9001 · mesero 1111 / 3333 · cajero 2222');
