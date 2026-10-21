@@ -1,46 +1,55 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/auth/auth.service';
+import { ToastService } from '../../../shared/components/toast/toast.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="min-h-screen flex items-center justify-center bg-dark-900 p-4">
-      <div class="w-full max-w-sm">
+    <div class="h-screen h-[100dvh] w-full max-w-full flex items-center justify-center bg-dark-900 p-4 relative overflow-hidden select-none touch-none">
+      <!-- Subtle ambient glow background -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-amber-500/8 rounded-full blur-3xl"></div>
+      </div>
+
+      <div class="w-full max-w-sm relative z-10">
         <!-- Logo y Título -->
         <div class="text-center mb-8">
           <img src="logo.png" alt="Señor Hornado" class="h-40 mx-auto object-contain drop-shadow-sm mb-4 invert">
         </div>
 
-        <!-- Card del PIN -->
-        <div class="bg-white dark:bg-dark-800 rounded-3xl shadow-2xl p-8 border border-dark-100 dark:border-dark-700">
-          <p class="text-center text-dark-500 dark:text-dark-400 text-sm font-medium mb-6">Ingresa tu PIN de acceso</p>
+        <!-- Card del PIN — Dark Glass High Contrast -->
+        <div class="bg-dark-800/90 dark:bg-dark-800/90 backdrop-blur-2xl rounded-3xl p-7 border border-dark-700/80 shadow-2xl"
+             [class.animate-shake]="shakeActive()">
+          <p class="text-center text-dark-300 text-sm font-semibold mb-6 tracking-wide">Ingresa tu PIN de acceso</p>
 
           <!-- Indicador de dígitos -->
-          <div class="flex justify-center gap-4 mb-6">
+          <div class="flex justify-center gap-4 mb-7">
             @for (dot of [0, 1, 2, 3]; track dot) {
               <div
                 class="w-4 h-4 rounded-full transition-all duration-200"
                 [class]="dot < pin().length
-                  ? 'bg-primary-500 scale-110 shadow-md shadow-primary-300'
-                  : 'bg-dark-200'"
+                  ? 'bg-primary-500 scale-125 shadow-lg shadow-primary-500/60'
+                  : 'bg-dark-700 border border-dark-600 scale-100'"
+                [style.transition-delay]="dot < pin().length ? (dot * 50) + 'ms' : '0ms'"
               ></div>
             }
           </div>
 
           <!-- Mensaje de error -->
           @if (error()) {
-            <div class="text-center mb-4 py-2 px-4 bg-primary-50 border border-primary-200 rounded-xl">
-              <p class="text-primary-600 text-sm font-medium">{{ error() }}</p>
+            <div class="text-center mb-4 py-2.5 px-4 bg-red-500/15 border border-red-500/30 rounded-2xl animate-slide-up">
+              <p class="text-red-400 text-sm font-bold">{{ error() }}</p>
             </div>
           }
 
           <!-- Mensaje de bienvenida -->
           @if (welcomeMessage()) {
-            <div class="text-center mb-4 py-2 px-4 bg-green-50 border border-green-200 rounded-xl">
-              <p class="text-green-600 text-sm font-medium">{{ welcomeMessage() }}</p>
+            <div class="text-center mb-4 py-2.5 px-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl animate-scale-in">
+              <p class="text-emerald-400 text-sm font-bold">{{ welcomeMessage() }}</p>
             </div>
           }
 
@@ -49,30 +58,33 @@ import { AuthService } from '../../../core/auth/auth.service';
             @for (num of [1, 2, 3, 4, 5, 6, 7, 8, 9]; track num) {
               <button
                 (click)="addDigit(num.toString())"
-                class="h-16 rounded-2xl text-2xl font-bold text-dark-700 dark:text-dark-200 bg-dark-50 dark:bg-dark-900/50
-                       hover:bg-dark-100 dark:hover:bg-dark-900 active:bg-dark-200 dark:active:bg-dark-950 active:scale-95
-                       transition-all duration-150 select-none"
+                class="h-16 rounded-2xl text-2xl font-bold text-white bg-dark-700/70
+                       hover:bg-dark-600 active:bg-primary-500 active:text-white active:scale-95
+                       transition-all select-none border border-dark-600/60 shadow-xs flex items-center justify-center"
+                [style.transition-duration]="'100ms'"
                 [disabled]="isLoading()"
               >
                 {{ num }}
               </button>
             }
 
-            <!-- Fila inferior: borrar, 0, enter -->
+            <!-- Fila inferior: borrar, 0, backspace -->
             <button
               (click)="clearPin()"
-              class="h-16 rounded-2xl text-sm font-semibold text-dark-400 dark:text-dark-500 bg-dark-50 dark:bg-dark-900/50
-                     hover:bg-dark-100 dark:hover:bg-dark-900 active:bg-dark-200 dark:active:bg-dark-950 active:scale-95
-                     transition-all duration-150 select-none"
+              class="h-16 rounded-2xl text-xs font-bold text-dark-300 hover:text-white
+                     bg-dark-700/50 hover:bg-dark-600 active:bg-dark-500 active:scale-95
+                     transition-all select-none border border-dark-600/50 flex items-center justify-center uppercase tracking-wider"
+              [style.transition-duration]="'100ms'"
             >
               Borrar
             </button>
 
             <button
               (click)="addDigit('0')"
-              class="h-16 rounded-2xl text-2xl font-bold text-dark-700 dark:text-dark-200 bg-dark-50 dark:bg-dark-900/50
-                     hover:bg-dark-100 dark:hover:bg-dark-900 active:bg-dark-200 dark:active:bg-dark-950 active:scale-95
-                     transition-all duration-150 select-none"
+              class="h-16 rounded-2xl text-2xl font-bold text-white bg-dark-700/70
+                     hover:bg-dark-600 active:bg-primary-500 active:text-white active:scale-95
+                     transition-all select-none border border-dark-600/60 shadow-xs flex items-center justify-center"
+              [style.transition-duration]="'100ms'"
               [disabled]="isLoading()"
             >
               0
@@ -80,18 +92,29 @@ import { AuthService } from '../../../core/auth/auth.service';
 
             <button
               (click)="deleteLastDigit()"
-              class="h-16 rounded-2xl text-xl font-semibold text-dark-400 dark:text-dark-500 bg-dark-50 dark:bg-dark-900/50
-                     hover:bg-dark-100 dark:hover:bg-dark-900 active:bg-dark-200 dark:active:bg-dark-950 active:scale-95
-                     transition-all duration-150 select-none flex items-center justify-center"
+              class="h-16 rounded-2xl text-xl font-bold text-dark-300 hover:text-white
+                     bg-dark-700/50 hover:bg-dark-600 active:bg-dark-500 active:scale-95
+                     transition-all select-none flex items-center justify-center border border-dark-600/50"
+              [style.transition-duration]="'100ms'"
             >
               <span class="material-symbols-rounded">backspace</span>
             </button>
           </div>
         </div>
 
-        <!-- Footer -->
-        <p class="text-center text-dark-500 text-xs mt-6">
-        </p>
+        <!-- Footer / keyboard hint & demo credentials -->
+        <div class="mt-6 text-center space-y-3">
+          <p class="text-dark-400 text-xs flex items-center justify-center gap-1.5 font-medium">
+            <span class="material-symbols-rounded text-sm">keyboard</span>
+            Puedes ingresar con la pantalla o tu teclado numérico
+          </p>
+          <div class="inline-flex flex-wrap items-center justify-center gap-2 p-2.5 rounded-2xl bg-dark-800/80 border border-dark-700/80 text-[11px]">
+            <span class="font-bold text-dark-300 mr-1">PINs Demo:</span>
+            <button (click)="fillPin('1234')" class="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-all font-mono font-bold active:scale-95 border border-amber-500/30">Admin: 1234</button>
+            <button (click)="fillPin('1111')" class="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-all font-mono font-bold active:scale-95 border border-emerald-500/30">Mesero: 1111</button>
+            <button (click)="fillPin('2222')" class="px-2.5 py-1 rounded-xl bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-all font-mono font-bold active:scale-95 border border-blue-500/30">Cajero: 2222</button>
+          </div>
+        </div>
       </div>
     </div>
   `,
@@ -101,14 +124,52 @@ export class LoginComponent {
   error = signal('');
   welcomeMessage = signal('');
   isLoading = signal(false);
+  shakeActive = signal(false);
 
-  constructor(private authService: AuthService) {
-    // Si ya tiene sesión, redirigir
+  constructor(
+    private authService: AuthService,
+    private toastService: ToastService,
+  ) {
     if (this.authService.isLoggedIn()) {
       const user = this.authService.user();
       if (user) {
         this.authService.redirectByRole(user);
       }
+    }
+  }
+
+  fillPin(targetPin: string): void {
+    this.clearPin();
+    for (const digit of targetPin) {
+      this.addDigit(digit);
+    }
+  }
+
+
+  /** Listen for physical keyboard input */
+  @HostListener('window:keydown', ['$event'])
+  handleKeyDown(event: KeyboardEvent): void {
+    if (this.isLoading()) return;
+
+    // Number keys (main keyboard and numpad)
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      this.addDigit(event.key);
+      return;
+    }
+
+    // Backspace
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      this.deleteLastDigit();
+      return;
+    }
+
+    // Escape — clear
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.clearPin();
+      return;
     }
   }
 
@@ -136,6 +197,11 @@ export class LoginComponent {
     this.welcomeMessage.set('');
   }
 
+  private triggerShake(): void {
+    this.shakeActive.set(true);
+    setTimeout(() => this.shakeActive.set(false), 500);
+  }
+
   private async attemptLogin(): Promise<void> {
     this.isLoading.set(true);
 
@@ -144,15 +210,19 @@ export class LoginComponent {
 
       if (user) {
         this.welcomeMessage.set(`¡Bienvenido, ${user.nombre}!`);
+        this.toastService.success(`¡Bienvenido, ${user.nombre}!`);
         setTimeout(() => {
           this.authService.redirectByRole(user);
         }, 800);
       } else {
         this.error.set('PIN incorrecto. Intenta de nuevo.');
+        this.triggerShake();
         this.pin.set('');
       }
     } catch (error) {
       this.error.set('Error de conexión. Intenta de nuevo.');
+      this.toastService.error('Error de conexión. Verifica tu red e intenta de nuevo.');
+      this.triggerShake();
       this.pin.set('');
     }
 

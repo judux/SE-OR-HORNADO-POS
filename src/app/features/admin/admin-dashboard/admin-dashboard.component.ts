@@ -1,6 +1,8 @@
 import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { OrderService } from '../../../core/services/order.service';
+import { ToastService } from '../../../shared/components/toast/toast.service';
+import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -167,6 +169,9 @@ export class AdminDashboardComponent {
     return Array.from(counts.entries()).map(([name, quantity]) => ({ name, quantity })).sort((a, b) => b.quantity - a.quantity);
   });
 
+  private confirmDialog = inject(ConfirmDialogService);
+  private toast = inject(ToastService);
+
   maxQuantity = computed(() => {
     const prods = this.allProducts();
     return prods.length > 0 ? prods[0].quantity : 1;
@@ -178,14 +183,22 @@ export class AdminDashboardComponent {
   });
 
   async clearHistory(): Promise<void> {
-    const confirm = window.confirm('ATENCIÓN ADMINISTRADOR: ¿Estás completamente seguro de borrar TODO el historial de ventas actual? Esta acción no se puede deshacer.');
-    if (!confirm) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: '¿Borrar todo el historial de ventas?',
+      message: 'ATENCIÓN ADMINISTRADOR: Se eliminarán permanentemente todas las ventas registradas. Esta acción no se puede deshacer.',
+      confirmText: 'Borrar todo',
+      confirmStyle: 'danger',
+      icon: 'warning'
+    });
+
+    if (!confirmed) return;
 
     const success = await this.orderService.clearOrderHistory();
     if (success) {
-      alert('Historial borrado exitosamente.');
+      this.toast.show({ message: 'Historial de ventas vaciado correctamente', type: 'success', icon: 'delete_forever' });
     } else {
-      alert('Error al borrar el historial.');
+      this.toast.show({ message: 'Error al borrar el historial', type: 'error', icon: 'error' });
     }
   }
 }
+

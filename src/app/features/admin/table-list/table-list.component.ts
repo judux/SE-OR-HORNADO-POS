@@ -2,6 +2,8 @@ import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TableService } from '../../../core/services/table.service';
+import { ToastService } from '../../../shared/components/toast/toast.service';
+import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-table-list',
@@ -202,9 +204,11 @@ export class TableListComponent {
   isSaving = signal<boolean>(false);
   newTableCapacity = signal<number | null>(4);
 
+  private toast = inject(ToastService);
+  private confirmDialog = inject(ConfirmDialogService);
+
   openModal(): void {
     this.newTableCapacity.set(4);
-    this.isSaving.set(false);
     this.showModal.set(true);
   }
 
@@ -221,24 +225,34 @@ export class TableListComponent {
     this.isSaving.set(false);
 
     if (success) {
+      this.toast.show({ message: 'Mesa creada exitosamente', type: 'success', icon: 'table_restaurant' });
       this.closeModal();
     } else {
-      alert('Hubo un error al crear la mesa.');
+      this.toast.show({ message: 'Error al crear la mesa', type: 'error', icon: 'error' });
     }
   }
 
   async deleteTable(id: string, numero: number, estado: string): Promise<void> {
     if (estado !== 'libre') {
-      alert('No puedes eliminar una mesa que no esté libre.');
+      this.toast.show({ message: 'No puedes eliminar una mesa que no esté libre', type: 'warning', icon: 'lock' });
       return;
     }
 
-    const confirm = window.confirm(`¿Estás seguro de que deseas eliminar la Mesa ${numero}?`);
-    if (!confirm) return;
+    const confirmed = await this.confirmDialog.confirm({
+      title: `¿Eliminar Mesa ${numero}?`,
+      message: `Esta acción quitará la Mesa ${numero} del sistema.`,
+      confirmText: 'Eliminar',
+      confirmStyle: 'danger',
+      icon: 'delete'
+    });
+
+    if (!confirmed) return;
 
     const success = await this.tableService.deleteTable(id);
-    if (!success) {
-      alert('Hubo un error al eliminar la mesa.');
+    if (success) {
+      this.toast.show({ message: `Mesa ${numero} eliminada`, type: 'success', icon: 'check_circle' });
+    } else {
+      this.toast.show({ message: 'Error al eliminar la mesa', type: 'error', icon: 'error' });
     }
   }
 }

@@ -1,8 +1,10 @@
-import { Component, signal, computed } from '@angular/core';
+import { Component, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UserService } from '../../../core/services/user.service';
+import { ToastService } from '../../../shared/components/toast/toast.service';
 import { User } from '../../../shared/interfaces';
+
 
 @Component({
   selector: 'app-user-list',
@@ -266,10 +268,16 @@ export class UserListComponent {
     }
   }
 
+  private toast = inject(ToastService);
+
   confirmDelete(user: User): void {
-    // Evitar borrar al único administrador inicial para no bloquearse
     if (user.id === '1') {
-      alert('Por seguridad, no puedes eliminar al administrador principal desde este panel.');
+      this.toast.show({
+        message: 'Por seguridad, no puedes eliminar al administrador principal.',
+        type: 'warning',
+        icon: 'security',
+        duration: 3500
+      });
       return;
     }
     this.deleteTarget.set(user);
@@ -277,8 +285,11 @@ export class UserListComponent {
 
   async doDelete(): Promise<void> {
     if (this.deleteTarget()) {
-      await this.userService.deleteUser(this.deleteTarget()!.id);
+      const user = this.deleteTarget()!;
+      await this.userService.deleteUser(user.id);
+      this.toast.show({ message: `Usuario ${user.nombre} eliminado`, type: 'info', icon: 'person_remove' });
       this.deleteTarget.set(null);
     }
   }
 }
+
