@@ -43,6 +43,20 @@ import { AuthService } from '../../../core/auth/auth.service';
               }
             }
 
+            @case ('error') {
+              <div class="text-center">
+                <span class="material-symbols-rounded text-5xl text-amber-400">wifi_off</span>
+                <h1 class="text-white text-lg font-extrabold mt-2">No se pudo verificar este equipo</h1>
+                <p class="text-dark-300 text-sm mt-1">Revisa la conexión a internet e intenta de nuevo.</p>
+                <button (click)="tenant.refresh()" class="w-full mt-6 py-3.5 rounded-2xl bg-primary-500 hover:bg-primary-600 text-white font-bold">
+                  Reintentar
+                </button>
+                <button (click)="deactivate()" class="w-full mt-3 py-3 rounded-2xl text-dark-300 hover:text-white text-sm font-semibold">
+                  Usar otra cuenta
+                </button>
+              </div>
+            }
+
             @case ('platform') {
               <div class="text-center">
                 <span class="material-symbols-rounded text-5xl text-amber-400">admin_panel_settings</span>

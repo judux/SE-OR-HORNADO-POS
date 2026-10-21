@@ -2,7 +2,7 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { Auth, authState, signInWithEmailAndPassword, signOut, User as FirebaseUser } from '@angular/fire/auth';
 import {
-    Firestore, doc, getDoc, docData, collection,
+    Firestore, doc, getDoc, docSnapshots, collection,
     CollectionReference, DocumentReference
 } from '@angular/fire/firestore';
 import { BehaviorSubject, Observable, Subscription, distinctUntilChanged, filter, firstValueFrom, of, switchMap, catchError } from 'rxjs';
@@ -16,7 +16,38 @@ import { RestaurantCollection, restaurantCol, restaurantDoc, PLATFORM_COLLECTION
  * - unlinked: cuenta válida en Firebase pero que no pertenece a ningún restaurante.
  * - none: sin sesión.
  */
-export type AccountKind = 'loading' | 'none' | 'device' | 'platform' | 'unlinked';
+export type AccountKind = 'loading' | 'none' | 'device' | 'platform' | 'unlinked' | 'error';
+
+interface Identification {
+    kind: 'none' | 'device' | 'platform' | 'unlinked' | 'error';
+    rid?: string;
+}
+
+// --- Caché local de la identificación (solo acelera el arranque; no da permisos) ---
+interface CachedAccount {
+    uid: string;
+    kind: 'device' | 'platform';
+    rid?: string;
+    restaurant?: Restaurant;
+}
+const CACHE_KEY = 'pos_cuenta';
+
+function readCachedAccount(uid: string): CachedAccount | null {
+    try {
+        const cached = JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null') as CachedAccount | null;
+        return cached && cached.uid === uid ? cached : null;
+    } catch {
+        return null;
+    }
+}
+
+function writeCachedAccount(value: CachedAccount): void {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(value)); } catch { /* sin almacenamiento: se ignora */ }
+}
+
+function clearCachedAccount(): void {
+    try { localStorage.removeItem(CACHE_KEY); } catch { /* se ignora */ }
+}
 
 export interface AccountState {
     kind: AccountKind;
@@ -48,22 +79,75 @@ export class TenantService {
     readonly activeRid$: Observable<string | null> = toObservable(this.activeRid).pipe(distinctUntilChanged());
 
     private restaurantSub?: Subscription;
+    private watchedRid: string | null = null;
     private resolution = 0; // solo se aplica la identificación más reciente
 
     constructor() {
         authState(this.auth).subscribe(user => this.runResolution(user));
     }
 
+    /**
+     * Identifica la cuenta. Si este dispositivo ya la conocía (caché local), la app arranca al instante
+     * con lo recordado y verifica en segundo plano; así también abre sin señal.
+     * La seguridad no depende de la caché: las reglas de Firestore validan cada operación.
+     */
     private async runResolution(user: FirebaseUser | null): Promise<AccountState> {
         const token = ++this.resolution;
-        this.account.set({ kind: 'loading' });
-        this.state$.next({ kind: 'loading' });
-        const state = await this.resolveAccount(user);
-        if (token === this.resolution) {
-            this.account.set(state);
-            this.state$.next(state);
+        const cached = user ? readCachedAccount(user.uid) : null;
+
+        if (user && cached) {
+            this.applyState({ kind: cached.kind, uid: user.uid, email: user.email }, cached.rid, cached.restaurant);
+            this.identify(user).then(result => {
+                // Sin conexión ('error'): se mantiene lo recordado
+                if (token !== this.resolution || result.kind === 'error') return;
+                if (result.kind !== cached.kind || result.rid !== cached.rid) {
+                    this.applyState({ kind: result.kind, uid: user.uid, email: user.email }, result.rid);
+                }
+            });
+            return this.whenResolved();
         }
+
+        this.publish({ kind: 'loading' });
+        const result: Identification = user ? await this.identify(user) : { kind: 'none' };
+        if (token !== this.resolution) return this.whenResolved();
+        if (result.kind === 'device' && result.rid) {
+            await this.watchRestaurant(result.rid); // primera vez: esperar el estado real del restaurante
+        }
+        this.applyState({ kind: result.kind, uid: user?.uid, email: user?.email }, result.rid);
         return this.whenResolved();
+    }
+
+    private publish(state: AccountState): void {
+        this.account.set(state);
+        this.state$.next(state);
+    }
+
+    /** Aplica una identificación: arranca o detiene la escucha del restaurante y guarda la caché. */
+    private applyState(state: AccountState, rid?: string, cachedRestaurant?: Restaurant): void {
+        if (state.kind === 'device' && rid) {
+            if (rid !== this.watchedRid) {
+                this.watchRestaurant(rid); // reinicia el restaurante; la primera lectura llega después
+                if (cachedRestaurant) this.restaurant.set(cachedRestaurant);
+            }
+        } else {
+            this.stopWatchingRestaurant();
+        }
+        this.publish(state);
+        this.saveCache();
+    }
+
+    private saveCache(): void {
+        const state = this.account();
+        if ((state.kind === 'device' && this.watchedRid) || state.kind === 'platform') {
+            writeCachedAccount({
+                uid: state.uid!,
+                kind: state.kind,
+                rid: this.watchedRid ?? undefined,
+                restaurant: this.restaurant() ?? undefined
+            });
+        } else if (state.kind !== 'error') {
+            clearCachedAccount();
+        }
     }
 
     /** Vuelve a identificar la cuenta actual (p. ej. justo después de crear sus documentos). */
@@ -76,39 +160,48 @@ export class TenantService {
         return firstValueFrom(this.state$.pipe(filter(s => s.kind !== 'loading')));
     }
 
-    private async resolveAccount(user: FirebaseUser | null): Promise<AccountState> {
-        this.restaurantSub?.unsubscribe();
-        this.restaurant.set(null);
-        if (!user) return { kind: 'none' };
-
-        const base = { uid: user.uid, email: user.email };
+    /** ¿Qué es esta cuenta? Las dos consultas van en paralelo. 'error' = no se pudo saber (sin conexión). */
+    private async identify(user: FirebaseUser): Promise<Identification> {
         try {
-            const platformSnap = await getDoc(doc(this.firestore, PLATFORM_COLLECTIONS.platformAdmins, user.uid));
-            if (platformSnap.exists()) return { kind: 'platform', ...base };
-
-            const deviceSnap = await getDoc(doc(this.firestore, PLATFORM_COLLECTIONS.devices, user.uid));
-            if (!deviceSnap.exists()) return { kind: 'unlinked', ...base };
-
-            const rid = deviceSnap.data()['rid'] as string;
-            await this.watchRestaurant(rid);
-            return { kind: 'device', ...base };
+            const [platformSnap, deviceSnap] = await Promise.all([
+                getDoc(doc(this.firestore, PLATFORM_COLLECTIONS.platformAdmins, user.uid)),
+                getDoc(doc(this.firestore, PLATFORM_COLLECTIONS.devices, user.uid))
+            ]);
+            if (platformSnap.exists()) return { kind: 'platform' };
+            if (deviceSnap.exists()) return { kind: 'device', rid: deviceSnap.data()['rid'] as string };
+            return { kind: 'unlinked' };
         } catch (error) {
             console.error('No se pudo identificar la cuenta:', error);
-            return { kind: 'unlinked', ...base };
+            return { kind: 'error' };
         }
     }
 
     /** Escucha el documento del restaurante en vivo (si lo suspenden, el equipo se bloquea al instante). */
     private watchRestaurant(rid: string): Promise<void> {
+        this.stopWatchingRestaurant();
+        this.watchedRid = rid;
         return new Promise(resolve => {
             let first = true;
-            this.restaurantSub = docData(doc(this.firestore, PLATFORM_COLLECTIONS.restaurants, rid)).pipe(
-                catchError(() => of(undefined))
-            ).subscribe(data => {
-                this.restaurant.set(data ? ({ id: rid, ...(data as any) } as Restaurant) : null);
+            this.restaurantSub = docSnapshots(doc(this.firestore, PLATFORM_COLLECTIONS.restaurants, rid)).pipe(
+                catchError(() => of(null))
+            ).subscribe(snap => {
+                // Se ignoran los errores y las lecturas "desde caché" sin confirmar del servidor
+                // (sin conexión, Firestore dice que el documento no existe): se conserva lo último conocido.
+                const confirmed = snap !== null && !(snap.metadata.fromCache && !snap.exists());
+                if (confirmed) {
+                    this.restaurant.set(snap.exists() ? ({ id: rid, ...snap.data() } as Restaurant) : null);
+                    this.saveCache();
+                }
                 if (first) { first = false; resolve(); }
             });
         });
+    }
+
+    private stopWatchingRestaurant(): void {
+        this.restaurantSub?.unsubscribe();
+        this.restaurantSub = undefined;
+        this.watchedRid = null;
+        this.restaurant.set(null);
     }
 
     async signIn(email: string, password: string): Promise<AccountState> {
