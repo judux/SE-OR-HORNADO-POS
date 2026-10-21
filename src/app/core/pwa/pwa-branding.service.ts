@@ -1,5 +1,6 @@
 import { Injectable, effect, inject } from '@angular/core';
 import { TenantService } from '../tenant/tenant.service';
+import { AccessService } from '../services/access.service';
 import { brandColor, initials, restaurantManifest } from './pwa-branding.logic';
 
 /**
@@ -8,12 +9,17 @@ import { brandColor, initials, restaurantManifest } from './pwa-branding.logic';
  * Sin restaurante (plataforma, registro, bienvenida) se usa la marca KINO-POS (public/manifest.webmanifest).
  *
  * Todo se hace en el navegador (plan gratuito): el ícono se dibuja con las iniciales del restaurante.
+ *
+ * La app instalada abre con el enlace del restaurante: en iPhone cada app de la pantalla de inicio
+ * tiene su propio almacenamiento (no ve la sesión de Safari), así que al abrirla por primera vez
+ * se vincula sola y va directo al PIN.
  */
 @Injectable({
     providedIn: 'root'
 })
 export class PwaBrandingService {
     private tenant = inject(TenantService);
+    private access = inject(AccessService);
     private readonly defaults = this.captureDefaults();
     private appliedFor: string | null = null;
 
@@ -22,10 +28,11 @@ export class PwaBrandingService {
         effect(() => {
             const restaurant = this.tenant.restaurant();
             const kind = this.tenant.account().kind;
+            const staffLink = this.access.staffLink();
             if (kind === 'device' && restaurant?.id && restaurant.nombre) {
-                const key = `${restaurant.id}|${restaurant.nombre}`;
+                const key = `${restaurant.id}|${restaurant.nombre}|${staffLink}`;
                 if (key !== this.appliedFor) {
-                    this.applyRestaurant(restaurant.id, restaurant.nombre);
+                    this.applyRestaurant(restaurant.id, restaurant.nombre, staffLink);
                     this.appliedFor = key;
                 }
             } else if (kind !== 'loading' && this.appliedFor !== null) {
@@ -35,11 +42,11 @@ export class PwaBrandingService {
         });
     }
 
-    private applyRestaurant(rid: string, nombre: string): void {
+    private applyRestaurant(rid: string, nombre: string, staffLink: string | null): void {
         const color = brandColor(rid);
         const letters = initials(nombre);
         const icons = [192, 512].map(size => ({ size, src: drawIcon(letters, color, size) }));
-        const manifest = restaurantManifest({ rid, nombre, origin: window.location.origin, icons, color });
+        const manifest = restaurantManifest({ rid, nombre, origin: window.location.origin, icons, color, startUrl: staffLink ?? undefined });
         const href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
 
         this.link('manifest').href = href;

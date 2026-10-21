@@ -30,6 +30,8 @@ export interface RestaurantManifestInput {
     origin: string;
     icons: { src: string; size: number }[];
     color: string;
+    /** Dirección con la que abre la app instalada (por defecto, la raíz). */
+    startUrl?: string;
 }
 
 /** Manifest de la PWA de un restaurante (id propio: el teléfono la trata como una app distinta). */
@@ -39,7 +41,7 @@ export function restaurantManifest(input: RestaurantManifestInput): Record<strin
         name: input.nombre,
         short_name: shortName(input.nombre),
         description: `${input.nombre} · pedidos y caja (KINO-POS)`,
-        start_url: `${input.origin}/`,
+        start_url: input.startUrl ?? `${input.origin}/`,
         scope: `${input.origin}/`,
         display: 'standalone',
         background_color: '#171717',

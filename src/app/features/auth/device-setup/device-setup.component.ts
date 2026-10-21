@@ -2,7 +2,9 @@ import { Component, effect, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { TenantService, AccountKind } from '../../../core/tenant/tenant.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { FormsModule } from '@angular/forms';
 import { GoogleSignInComponent } from '../../../shared/components/google-sign-in/google-sign-in.component';
+import { parseJoinLink } from '../../../core/tenant/tokens';
 
 /**
  * Pantalla de un equipo que todavía no pertenece a un restaurante (o cuyo restaurante está suspendido).
@@ -11,7 +13,7 @@ import { GoogleSignInComponent } from '../../../shared/components/google-sign-in
 @Component({
   selector: 'app-device-setup',
   standalone: true,
-  imports: [GoogleSignInComponent],
+  imports: [GoogleSignInComponent, FormsModule],
   template: `
     <div class="min-h-[100dvh] w-full flex items-center justify-center bg-dark-900 p-4">
       <div class="w-full max-w-sm">
@@ -82,7 +84,15 @@ import { GoogleSignInComponent } from '../../../shared/components/google-sign-in
                 <p class="text-white font-bold text-sm flex items-center gap-2">
                   <span class="material-symbols-rounded text-base text-emerald-400">badge</span> ¿Eres mesero o cajero?
                 </p>
-                <p class="text-dark-300 text-sm mt-1">Pídele a tu administrador el <strong class="text-white">enlace de tu restaurante</strong> y ábrelo en este celular.</p>
+                <p class="text-dark-300 text-sm mt-1">Pídele a tu administrador el <strong class="text-white">enlace de tu restaurante</strong> y ábrelo en este celular, o pégalo aquí:</p>
+                <form (ngSubmit)="openPastedLink()" class="mt-3 flex gap-2">
+                  <input name="enlace" [(ngModel)]="pastedLink" placeholder="Pega el enlace" autocomplete="off"
+                    class="flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-dark-900 border border-dark-600 text-white text-sm outline-none focus:border-primary-500">
+                  <button type="submit" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold">Entrar</button>
+                </form>
+                @if (linkError) {
+                  <p class="text-red-400 text-xs font-bold mt-2">{{ linkError }}</p>
+                }
               </div>
 
               <div class="rounded-2xl bg-dark-900/70 border border-dark-700 p-4">
@@ -102,6 +112,8 @@ export class DeviceSetupComponent {
   public tenant = inject(TenantService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  pastedLink = '';
+  linkError = '';
 
   /**
    * Al iniciar sesión aquí, la cuenta cambia de tipo y se navega según el resultado.
@@ -149,5 +161,16 @@ export class DeviceSetupComponent {
   async signOut(): Promise<void> {
     this.authService.clearSession();
     await this.tenant.signOut();
+  }
+
+  /** En la app instalada (iPhone) no se puede "abrir" el enlace dentro de ella: se pega aquí. */
+  openPastedLink(): void {
+    const link = parseJoinLink(this.pastedLink);
+    if (!link) {
+      this.linkError = 'Ese no parece el enlace del restaurante. Cópialo completo e intenta de nuevo.';
+      return;
+    }
+    this.linkError = '';
+    this.router.navigate(['/unirse', link.rid, link.token]);
   }
 }

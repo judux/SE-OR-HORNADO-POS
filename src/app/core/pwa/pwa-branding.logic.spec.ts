@@ -27,4 +27,10 @@ describe('marca de la PWA por restaurante', () => {
         expect(m['start_url']).toBe('https://kino-pos.web.app/');
         expect((m['icons'] as any[])[0].sizes).toBe('192x192');
     });
+
+    it('abre la app instalada con el enlace del restaurante cuando se conoce', () => {
+        const m = restaurantManifest({ rid: 'r1', nombre: 'X', origin: 'https://kino-pos.web.app', icons: [], color: '#000000', startUrl: 'https://kino-pos.web.app/unirse/r1/tok' });
+        expect(m['start_url']).toBe('https://kino-pos.web.app/unirse/r1/tok');
+        expect(m['scope']).toBe('https://kino-pos.web.app/');
+    });
 });
