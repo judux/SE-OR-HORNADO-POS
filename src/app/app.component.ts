@@ -39,7 +39,8 @@ export class AppComponent {
       // Si el restaurante se suspende o el equipo pierde su sesión mientras se usa la app,
       // salir de inmediato a la pantalla que lo explica (los datos ya no cargan por las reglas).
       if (account.kind === 'loading') return;
-      const url = this.router.url;
+      // location.pathname: al arrancar, router.url todavía es '/' aunque se haya abierto otra ruta
+      const url = window.location.pathname;
       const isPublic = PUBLIC_PREFIXES.some(p => url.startsWith(p));
       if (!activeRid && !isPublic && account.kind !== 'platform') {
         this.router.navigate(['/activar']);

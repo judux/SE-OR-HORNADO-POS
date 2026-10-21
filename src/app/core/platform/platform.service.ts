@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Auth, createUserWithEmailAndPassword } from '@angular/fire/auth';
 import {
-    Firestore, collection, collectionData, doc, getDocs, query, orderBy, where,
+    Firestore, collection, collectionData, doc, getDocs, query, where,
     writeBatch, updateDoc, setDoc, Timestamp
 } from '@angular/fire/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
@@ -50,8 +50,11 @@ export class PlatformService {
     private tenant = inject(TenantService);
 
     restaurants$(): Observable<Restaurant[]> {
-        const q = query(collection(this.firestore, 'restaurants'), orderBy('creado_en', 'desc'));
-        return collectionData(q, { idField: 'id' }).pipe(map(list => list as Restaurant[]));
+        // Sin orderBy en la consulta: Firestore excluiría restaurantes sin 'creado_en'. Se ordena aquí.
+        return collectionData(collection(this.firestore, 'restaurants'), { idField: 'id' }).pipe(
+            map(list => (list as Restaurant[]).sort((a, b) =>
+                (b.creado_en?.toMillis?.() ?? 0) - (a.creado_en?.toMillis?.() ?? 0)))
+        );
     }
 
     /**
