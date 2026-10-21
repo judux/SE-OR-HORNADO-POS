@@ -102,18 +102,12 @@ import { ToastService } from '../../../shared/components/toast/toast.service';
           </div>
         </div>
 
-        <!-- Footer / keyboard hint & demo credentials -->
-        <div class="mt-6 text-center space-y-3">
+        <!-- Footer / keyboard hint -->
+        <div class="mt-6 text-center">
           <p class="text-dark-400 text-xs flex items-center justify-center gap-1.5 font-medium">
             <span class="material-symbols-rounded text-sm">keyboard</span>
             Puedes ingresar con la pantalla o tu teclado numérico
           </p>
-          <div class="inline-flex flex-wrap items-center justify-center gap-2 p-2.5 rounded-2xl bg-dark-800/80 border border-dark-700/80 text-[11px]">
-            <span class="font-bold text-dark-300 mr-1">PINs Demo:</span>
-            <button (click)="fillPin('1234')" class="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-all font-mono font-bold active:scale-95 border border-amber-500/30">Admin: 1234</button>
-            <button (click)="fillPin('1111')" class="px-2.5 py-1 rounded-xl bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition-all font-mono font-bold active:scale-95 border border-emerald-500/30">Mesero: 1111</button>
-            <button (click)="fillPin('2222')" class="px-2.5 py-1 rounded-xl bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-all font-mono font-bold active:scale-95 border border-blue-500/30">Cajero: 2222</button>
-          </div>
         </div>
       </div>
     </div>
@@ -135,13 +129,6 @@ export class LoginComponent {
       if (user) {
         this.authService.redirectByRole(user);
       }
-    }
-  }
-
-  fillPin(targetPin: string): void {
-    this.clearPin();
-    for (const digit of targetPin) {
-      this.addDigit(digit);
     }
   }
 

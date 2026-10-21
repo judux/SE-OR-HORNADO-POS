@@ -21,40 +21,20 @@ export class AuthService {
     /**
      * Inicia sesión buscando un usuario por su PIN en Firestore.
      * Retorna el usuario si el PIN es válido, null si no.
+     * Si Firestore no responde, el error se propaga: nunca se concede acceso sin validar el PIN.
      */
     async loginByPin(pin: string): Promise<User | null> {
-        try {
-            const usersRef = collection(this.firestore, 'users');
-            const q = query(usersRef, where('pin_acceso', '==', pin), where('activo', '==', true));
-            const snapshot = await getDocs(q);
+        const usersRef = collection(this.firestore, 'users');
+        const q = query(usersRef, where('pin_acceso', '==', pin), where('activo', '==', true));
+        const snapshot = await getDocs(q);
 
-            if (!snapshot.empty) {
-                const doc = snapshot.docs[0];
-                const user: User = { id: doc.id, ...doc.data() } as User;
-                this.currentUser.set(user);
-                this.saveSession(user);
-                return user;
-            }
-        } catch (error) {
-            console.error('Error al autenticar en Firestore, usando fallback:', error);
-        }
+        if (snapshot.empty) return null;
 
-        // Fallback de desarrollo / demo para garantizar acceso
-        const defaultUsers: Record<string, User> = {
-            '1234': { id: 'default_admin', nombre: 'Administrador', rol: 'admin', pin_acceso: '1234', activo: true },
-            '1111': { id: 'default_mesero_1', nombre: 'Carlos (Mesero)', rol: 'mesero', pin_acceso: '1111', activo: true },
-            '3333': { id: 'default_mesero_2', nombre: 'Lucía (Mesero)', rol: 'mesero', pin_acceso: '3333', activo: true },
-            '2222': { id: 'default_cajero', nombre: 'Ana (Cajero)', rol: 'cajero', pin_acceso: '2222', activo: true },
-        };
-
-        if (defaultUsers[pin]) {
-            const user = defaultUsers[pin];
-            this.currentUser.set(user);
-            this.saveSession(user);
-            return user;
-        }
-
-        return null;
+        const doc = snapshot.docs[0];
+        const user: User = { id: doc.id, ...doc.data() } as User;
+        this.currentUser.set(user);
+        this.saveSession(user);
+        return user;
     }
 
     /**
@@ -86,7 +66,9 @@ export class AuthService {
     }
 
     private saveSession(user: User): void {
-        localStorage.setItem('pos_session', JSON.stringify(user));
+        // El PIN no se guarda en el navegador
+        const { pin_acceso, ...sessionData } = user;
+        localStorage.setItem('pos_session', JSON.stringify(sessionData));
     }
 
     private restoreSession(): void {
@@ -94,6 +76,11 @@ export class AuthService {
         if (stored) {
             try {
                 const user: User = JSON.parse(stored);
+                // Descartar sesiones de los antiguos usuarios demo (ids 'default_*')
+                if (!user?.id || user.id.startsWith('default_')) {
+                    localStorage.removeItem('pos_session');
+                    return;
+                }
                 this.currentUser.set(user);
             } catch {
                 localStorage.removeItem('pos_session');
