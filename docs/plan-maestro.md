@@ -23,8 +23,8 @@
 | T-11 Conexión honesta | ✅ Hecho y verificado | P-11 (sin red simulado) |
 | T-12 Limpieza menor | ✅ Hecho | — |
 | Extra | ✅ Aviso de versión nueva de la PWA; entorno de emulador (`npm run emulators`, `seed:emu`, `start:emu`); íconos en caché para usar sin conexión (falta verificar en modo avión); formato `es-CO` | — |
-| T-13 Datos reales | ⏳ Pendiente (requiere al dueño) | `docs/guia-despliegue-piloto.md`, pasos 1–2 y 6 |
-| T-14 Despliegue y activación | ⏳ Pendiente (requiere tu cuenta de Firebase) | Guía, pasos 4–5 |
+| T-13 Datos reales | 🟡 Admin creado y datos de prueba borrados; falta cargar menú, mesas y personal reales | `docs/guia-despliegue-piloto.md`, pasos 1–2 y 6 |
+| T-14 Despliegue y activación | 🟡 Desplegado a producción el 20 de octubre (sitio y reglas). Falta activar cada dispositivo | Versión `main-2NGUVYYI.js` en vivo; acceso sin sesión → 403 |
 | T-15 Ensayo general | ⏳ Pendiente (viernes) | `docs/piloto-2026-10-24.md` |
 
 **Hallazgos nuevos durante la implementación** (no estaban en la auditoría inicial):
