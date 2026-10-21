@@ -396,12 +396,10 @@ import { Order, Product } from '../../../shared/interfaces';
                 <div class="space-y-3 mb-5">
                   <div class="flex items-center gap-1.5 flex-wrap">
                     <span class="text-[10px] font-extrabold text-dark-400 uppercase tracking-wider mr-1">Billetes Rápido:</span>
-                    <button (click)="billeteRecibido.set(5)" class="px-2.5 py-1 bg-white dark:bg-dark-700 border border-dark-200 dark:border-dark-600 rounded-xl text-xs font-bold text-dark-800 dark:text-white hover:border-amber-500 transition-colors">$5</button>
-                    <button (click)="billeteRecibido.set(10)" class="px-2.5 py-1 bg-white dark:bg-dark-700 border border-dark-200 dark:border-dark-600 rounded-xl text-xs font-bold text-dark-800 dark:text-white hover:border-amber-500 transition-colors">$10</button>
-                    <button (click)="billeteRecibido.set(20)" class="px-2.5 py-1 bg-white dark:bg-dark-700 border border-dark-200 dark:border-dark-600 rounded-xl text-xs font-bold text-dark-800 dark:text-white hover:border-amber-500 transition-colors">$20</button>
-                    <button (click)="billeteRecibido.set(50)" class="px-2.5 py-1 bg-white dark:bg-dark-700 border border-dark-200 dark:border-dark-600 rounded-xl text-xs font-bold text-dark-800 dark:text-white hover:border-amber-500 transition-colors">$50</button>
-                    <button (click)="billeteRecibido.set(100)" class="px-2.5 py-1 bg-white dark:bg-dark-700 border border-dark-200 dark:border-dark-600 rounded-xl text-xs font-bold text-dark-800 dark:text-white hover:border-amber-500 transition-colors">$100</button>
-                    <button (click)="billeteRecibido.set(selectedOrder()?.subtotal || 0)" class="px-2.5 py-1 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-colors">Exacto</button>
+                    @for (billete of billetes; track billete) {
+                      <button (click)="billeteRecibido.set(billete)" class="px-2.5 py-2 bg-white dark:bg-dark-700 border border-dark-200 dark:border-dark-600 rounded-xl text-xs font-bold text-dark-800 dark:text-white hover:border-amber-500 transition-colors">$ {{ billete | number:'1.0-0' }}</button>
+                    }
+                    <button (click)="billeteRecibido.set(selectedOrder()?.subtotal || 0)" class="px-2.5 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-colors">Exacto</button>
                   </div>
 
                   <div class="flex items-center gap-2">
@@ -656,6 +654,8 @@ export class CashierDashboardComponent implements OnDestroy {
   selectedOrder = signal<Order | null>(null);
   paymentMethod = signal<'efectivo' | 'transferencia'>('efectivo');
   billeteRecibido = signal<number>(0);
+  // Billetes colombianos (COP) para el cobro rápido en efectivo
+  readonly billetes = [2000, 5000, 10000, 20000, 50000, 100000];
 
   // Modal State - Unir Mesas
   showMergeModal = signal<boolean>(false);
