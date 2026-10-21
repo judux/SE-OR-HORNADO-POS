@@ -22,7 +22,7 @@
 | T-10 Aviso de comandas | ✅ Hecho y verificado | Avisos de nueva y de actualizada |
 | T-11 Conexión honesta | ✅ Hecho y verificado | P-11 (sin red simulado) |
 | T-12 Limpieza menor | ✅ Hecho | — |
-| Extra | ✅ Aviso de versión nueva de la PWA; entorno de emulador (`npm run emulators`, `seed:emu`, `start:emu`) | — |
+| Extra | ✅ Aviso de versión nueva de la PWA; entorno de emulador (`npm run emulators`, `seed:emu`, `start:emu`); íconos en caché para usar sin conexión (falta verificar en modo avión); formato `es-CO` | — |
 | T-13 Datos reales | ⏳ Pendiente (requiere al dueño) | `docs/guia-despliegue-piloto.md`, pasos 1–2 y 6 |
 | T-14 Despliegue y activación | ⏳ Pendiente (requiere tu cuenta de Firebase) | Guía, pasos 4–5 |
 | T-15 Ensayo general | ⏳ Pendiente (viernes) | `docs/piloto-2026-10-24.md` |
@@ -32,7 +32,7 @@
 - **A-29:** usar `track item.x ?? $index` compila pero falla al ejecutar en Angular 18 y deja vacía la lista de la comanda. Se detectó probando en el navegador, no con el build.
 - **A-30 (Sprint 2):**
   - La caja no muestra las notas de preparación ("sin ensalada") en el detalle del cobro.
-  - Las fechas salen en inglés ("Tuesday, October 20"); falta registrar la configuración regional `es-CO`.
+  - ~~Las fechas salen en inglés~~: corregido con la configuración regional `es-CO` (commit `c4b5ced`).
   - El texto escrito en las notas se ve muy tenue.
 
 ## Contexto
