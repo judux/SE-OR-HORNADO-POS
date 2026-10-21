@@ -115,10 +115,10 @@ import { TenantService } from '../../../core/tenant/tenant.service';
 
                     <!-- Preview Items -->
                     <div class="space-y-1.5 text-xs mb-4">
-                      @for (item of order.items.slice(0, 3); track item.id_producto) {
+                      @for (item of order.items.slice(0, 3); track trackLine($index, item)) {
                         <div class="flex justify-between items-baseline gap-2">
                           <span class="font-black text-amber-600 dark:text-amber-400 shrink-0">{{ item.cantidad }}x</span>
-                          <span class="text-dark-700 dark:text-dark-300 font-medium truncate">{{ item.nombre_producto }}</span>
+                          <span class="text-dark-700 dark:text-dark-300 font-medium truncate">{{ item.nombre_producto }}@if (item.notas) {<span class="text-amber-700 dark:text-amber-300"> · {{ item.notas }}</span>}</span>
                           <div class="flex-1 border-b border-dotted border-dark-200 dark:border-dark-700 relative -top-1"></div>
                           <span class="font-bold text-dark-900 dark:text-white shrink-0">$ {{ (item.precio_unitario * item.cantidad) | number:'1.0-0' }}</span>
                         </div>
@@ -373,7 +373,12 @@ import { TenantService } from '../../../core/tenant/tenant.service';
                         <span class="material-symbols-rounded text-sm">delete</span>
                       </button>
                       <span class="font-black text-amber-600 dark:text-amber-400">{{ item.cantidad }}x</span>
-                      <span class="font-medium text-dark-800 dark:text-white truncate">{{ item.nombre_producto }}</span>
+                      <div class="min-w-0">
+                        <span class="font-medium text-dark-800 dark:text-white truncate block">{{ item.nombre_producto }}</span>
+                        @if (item.notas) {
+                          <span class="text-[11px] text-amber-700 dark:text-amber-300 block">📝 {{ item.notas }}</span>
+                        }
+                      </div>
                     </div>
                     <span class="font-bold text-dark-900 dark:text-white shrink-0">$ {{ (item.precio_unitario * item.cantidad) | number:'1.0-0' }}</span>
                   </div>
