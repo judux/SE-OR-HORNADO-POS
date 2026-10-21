@@ -1,11 +1,112 @@
-# Plan maestro: Señor Hornado POS, del piloto al producto comercial
+# Plan maestro: KINO-POS, del piloto al producto comercial
 
-> **Fecha del plan:** martes 20 de octubre de 2026. **Prueba piloto:** sábado 24 de octubre de 2026 (quedan 3 días hábiles).
-> **Base:** revisión directa del repositorio (`main`, commit `252d0a1` más los cambios sin commit) y un `ng build` que compiló sin errores.
-> **Decisiones que ya tomaste:** el sábado se usa solo el plan Spark (gratis) y Blaze queda para después. No habrá pantalla de cocina. Dispositivos: celulares de los meseros y una tablet o PC en caja, sin impresora térmica. La base de datos actual solo tiene datos de prueba.
-> **Qué pasa al aprobar:** copio este plan a `docs/plan-maestro.md` dentro del repo y empiezo el Sprint 1 por la tarea T-01.
+> **Producto:** KINO-POS, sistema de pedidos, caja y administración para restaurantes. Vive en `https://kino-pos.web.app`.
+> **Primer cliente (piloto):** Señor Hornado.
+> **Última actualización:** miércoles 21 de octubre de 2026.
+> **Reglas que no cambian:**
+> - Todo dentro del plan gratuito (Spark) hasta que el piloto demuestre que la app sirve. Lo que requiere pagar se anota en `docs/pendientes.md`.
+> - No se sacrifica la seguridad.
+> - Cada cambio se verifica (`npm run verify`) antes de desplegar.
+> - Sin fecha límite: se avanza cuando funciona bien.
 
 ---
+
+## Dónde estamos y hacia dónde vamos
+
+### Dónde estamos
+
+| Etapa | Estado | Detalle |
+|---|---|---|
+| **Sprint 1: piloto seguro** | ✅ Hecho y probado | Pedidos sin pérdidas, cobro sin duplicados, turnos sin borrar ventas, base de datos cerrada. Más abajo, en "Estado del Sprint 1" |
+| **Fase 4: varios restaurantes** | ✅ Hecho antes de tiempo, dentro de lo gratis | Estaba planeada para el final y con Blaze. Ver "Estado de la Fase 4" |
+| **Fase 4b: ingreso con Google y enlaces** | ✅ Hecho y probado en producción por el dueño | Panel oculto, registro, aprobación, PIN propio del admin y enlace del personal |
+| **Fase 4c: marca KINO-POS y una app por restaurante** | ✅ Hecho y probado en producción por el dueño | `kino-pos.web.app`; cada restaurante instala "su" app |
+| **Datos reales de Señor Hornado** | 🟡 Falta | Menú, precios, mesas y personal |
+| **Ensayo general y piloto real** | ⏳ Falta | Guion P-01 a P-21 en `docs/piloto-2026-10-24.md` |
+| Sprint 2: estabilizar | ⏳ No empezado | Depende de lo que enseñe el piloto |
+| Sprint 3: seguridad en el servidor (Blaze) | ⏳ Anotado a propósito para después | `docs/pendientes.md`, sección A |
+| Sprint 4: diseño y facilidad de uso | ⏳ Casi nada todavía | — |
+
+**En una frase:** ya existe una **plataforma** que funciona, pero todavía falta la **prueba de que sirve en un restaurante real**. Ningún restaurante ha trabajado un día completo con ella.
+
+### Hacia dónde vamos
+
+Cada etapa tiene una condición para darla por terminada. No se pasa a la siguiente sin cumplirla.
+
+**Etapa 1: piloto real con Señor Hornado** ← *estamos aquí*
+- **Tareas:**
+  1. Unir la rama `piloto-sabado` a `main`.
+  2. Cargar el menú con los precios reales, las mesas y el personal con PINs únicos. El dueño revisa los precios en pantalla.
+  3. Vincular cada celular con el enlace del restaurante e instalar la app.
+  4. Ensayo general con el guion P-01 a P-21 en los equipos reales, incluido medir la señal en cada terraza.
+  5. Operar un día real con el respaldo en papel a mano (plan de respaldo en la sección 2.5) y anotar cada incidencia: hora, quién, qué pasó y qué se hizo.
+- **Termina cuando:** pasaron P-01, P-03, P-04, P-05, P-07, P-09, P-10, P-17 y P-21, y hubo al menos un turno completo operado con la app, con su registro de incidencias.
+
+**Etapa 2: estabilizar (Sprint 2, gratis)**
+- **Primero:** lo que salga del piloto, ordenado por gravedad.
+- **Ya anotado:**
+  - Pedidos sin señal: se guardan en el celular y se envían al volver.
+  - El admin ve los celulares vinculados y puede quitar uno perdido.
+  - Revisar el aviso de "versión nueva".
+  - Dividir la cuenta por cantidad.
+  - Partir la pantalla de caja (más de 900 líneas).
+  - Pruebas automáticas de punta a punta (Playwright).
+  - Pasar a Node 22 LTS.
+- **Termina cuando:** hubo un segundo turno real sin incidencias críticas y las pruebas automáticas cubren el flujo de pedido a cobro.
+
+**Etapa 3: que se vea y se sienta profesional (Sprint 4, gratis)**
+- **Tareas:**
+  - Tomar una comanda más rápido.
+  - Modo de alto contraste para usar al sol.
+  - Caja más clara.
+  - Estados de carga y error coherentes.
+  - Alta guiada de un restaurante nuevo (menú, mesas y personal en menos de 30 minutos).
+  - Manual de una página por rol.
+- **Termina cuando:** un mesero nuevo toma una comanda en menos de 30 segundos sin ayuda.
+
+**Etapa 4: seguridad profesional (Sprint 3, con Blaze)**
+- **Cuándo:** solo cuando el piloto confirme que la app sirve y antes de cobrarle a otro restaurante.
+- **Tareas:**
+  - Alertas de presupuesto desde el primer día.
+  - Roles validados en el servidor (*custom claims*).
+  - Login por PIN en el servidor, con el PIN cifrado y límite de intentos.
+  - Cierre de venta en el servidor.
+  - Copias de seguridad automáticas.
+- **Costo estimado:** centavos al mes para 1–3 restaurantes; hay que confirmar la tarifa vigente.
+- **Termina cuando:** las pruebas de reglas demuestran que un mesero no puede cobrar ni borrar ventas y que un PIN no se puede leer.
+
+**Etapa 5: vender**
+- **Tareas:**
+  - Dominio propio.
+  - Nombre KINO-POS en la ventana de Google.
+  - Facturación electrónica DIAN con un proveedor autorizado, **con un contador**.
+  - Términos del servicio y política de datos, **con un abogado**.
+  - Precio, después de entrevistar a 5–10 restaurantes.
+  - Canal de soporte.
+- **Termina cuando:** hay un primer restaurante externo en piloto.
+
+### Riesgos aceptados por ahora (y cuándo se cierran)
+
+| Riesgo | Alcance | Se cierra en |
+|---|---|---|
+| El rol (mesero, cajero o admin) se valida en el celular | Alguien con conocimientos técnicos y un celular vinculado podría actuar como otro rol **dentro de su propio restaurante**. Nunca puede entrar a otro restaurante | Etapa 4 |
+| Los PINs son legibles para los equipos vinculados del mismo restaurante | Igual que el anterior | Etapa 4 |
+| Sin copias de seguridad automáticas | Un error grave no se puede deshacer | Etapa 4 (antes de cuidar ventas reales de varios clientes) |
+| Sin señal no se pueden enviar pedidos | La app lo avisa con claridad; se usa el respaldo en papel | Etapa 2 |
+| Cada cuenta de Google administra un solo restaurante | Un dueño con varios locales necesita varias cuentas | Cuando un cliente lo pida |
+
+### Cómo trabajamos
+
+- **Tareas pequeñas.** Cada tarea va en su propio commit y se verifica (build, pruebas unitarias y pruebas de reglas) antes de desplegar.
+- **Reglas de arquitectura** en `docs/arquitectura.md`, para que un cambio futuro no rompa lo demás.
+- **Backlog** en `docs/pendientes.md`: lo que se decidió no hacer todavía y por qué.
+- **Pruebas:** el dueño prueba en producción después de cada despliegue.
+
+---
+
+# Historial (cómo llegamos aquí)
+
+> Desde aquí hacia abajo está el plan original del 20 de octubre y el registro de cada fase. Se conserva para entender las decisiones. Si algo contradice lo de arriba, **vale lo de arriba**.
 
 ## Estado del Sprint 1 (actualizado el 20 de octubre de 2026, noche)
 
@@ -42,7 +143,7 @@
 - **Una PWA por restaurante:** cuando un equipo está vinculado a un restaurante, la app cambia su manifest antes de instalarse: nombre del restaurante, ícono con sus iniciales y un color propio, y un `id` distinto por restaurante. Así, en el celular aparece como "Señor Hornado" y no como KINO-POS. Sin restaurante (registro, plataforma, bienvenida) se instala como KINO-POS. Código: `src/app/core/pwa/`.
 - **Límite:** el ícono es de iniciales; un logo subido requiere Cloud Storage (Blaze). La instalación hay que comprobarla en celulares reales (Android e iPhone).
 
-## Fase 4b: ingreso con Google y enlaces (en curso, definida el 21 de octubre de 2026)
+## Fase 4b: ingreso con Google y enlaces (hecha el 21 de octubre de 2026)
 
 Reemplaza las cuentas con correo y contraseña por un flujo pensado para el negocio real. **La base no cambia:** se mantienen la separación por restaurante, las reglas y los servicios.
 
@@ -113,7 +214,7 @@ La meta es corregir lo que pone en riesgo el dinero y los datos antes del sábad
 
 ---
 
-## 2. Plan de emergencia para el sábado
+## 2. Plan de emergencia para el piloto (escrito para el sábado 24; el piloto ya no tiene fecha fija)
 
 ### 2.1 Qué entra en el piloto y qué no
 
@@ -309,7 +410,7 @@ Cada caso se marca como ✅ o ❌. Lo ideal es hacerlo con dos personas: una de 
 
 ---
 
-## 5. Varios restaurantes (Fase 4, solo diseño, se implementa después del Sprint 3)
+## 5. Varios restaurantes (diseño original; lo implementado, dentro del plan gratuito, está en "Estado de la Fase 4")
 
 ### 5.1 Alternativas para separar los datos
 
@@ -397,7 +498,7 @@ Cuando hagan falta Functions (Sprint 3) o haya más de 3 o 4 restaurantes en el 
 
 ---
 
-## 7. Hoja de ruta por fases y sprints
+## 7. Hoja de ruta por fases y sprints (original; la ruta vigente está en "Hacia dónde vamos")
 
 | Sprint | Fecha aproximada | Objetivo | Entregable verificable |
 |---|---|---|---|
