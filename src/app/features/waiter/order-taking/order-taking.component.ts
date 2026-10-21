@@ -7,6 +7,7 @@ import { OrderService } from '../../../core/services/order.service';
 import { TableService } from '../../../core/services/table.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
+import { ConnectionService, TimeoutError } from '../../../core/services/connection.service';
 import { OrderItem, Product } from '../../../shared/interfaces';
 
 @Component({
@@ -335,6 +336,7 @@ export class OrderTakingComponent {
   private tableService = inject(TableService);
   private toast = inject(ToastService);
   private confirmDialog = inject(ConfirmDialogService);
+  private connection = inject(ConnectionService);
 
   selectedCategory = signal<string>('todos');
 
@@ -439,10 +441,21 @@ export class OrderTakingComponent {
     const currentTable = this.currentTable();
     if (!currentTable || this.isSending()) return;
 
+    if (!this.connection.online()) {
+      this.toast.show({
+        message: 'Sin conexión: el pedido NO se envió. Busca señal o avisa en caja.',
+        type: 'error',
+        icon: 'wifi_off',
+        duration: 6000
+      });
+      return;
+    }
+
     this.isSending.set(true);
 
     try {
-      const success = await this.orderService.saveOrder(estadoFinal);
+      // Si el servidor no confirma en 10 s se avisa; reenviar después es seguro (no duplica líneas)
+      const success = await this.connection.withTimeout(this.orderService.saveOrder(estadoFinal), 10000);
 
       if (success) {
         if (estadoFinal === 'en_caja') {
@@ -470,9 +483,12 @@ export class OrderTakingComponent {
       }
     } catch (error) {
       this.toast.show({
-        message: 'Error de conexión. Intenta de nuevo.',
-        type: 'error',
-        icon: 'wifi_off'
+        message: error instanceof TimeoutError
+          ? 'No confirmado: la señal está lenta. Confirma con caja antes de volver a enviar.'
+          : 'Error de conexión. Intenta de nuevo.',
+        type: error instanceof TimeoutError ? 'warning' : 'error',
+        icon: 'wifi_off',
+        duration: 6000
       });
     }
 

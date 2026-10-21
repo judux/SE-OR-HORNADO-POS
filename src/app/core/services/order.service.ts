@@ -43,9 +43,15 @@ export class OrderService implements OnDestroy {
             .flatMap(o => o.items.map(item => ({ ...item, enviado: true })));
     });
 
+    // Líneas nuevas que el servidor aún no tiene (si una confirmación llegó tarde, desaparecen solas)
+    private readonly pendingLines = computed<OrderItem[]>(() => {
+        const sentIds = new Set(this.sentLines().map(l => l.line_id));
+        return this.newLines().filter(l => !sentIds.has(l.line_id));
+    });
+
     // Comanda que ve el mesero = enviadas (🔒) + nuevas (editables)
-    readonly items = computed<OrderItem[]>(() => [...this.sentLines(), ...this.newLines()]);
-    readonly hasNewItems = computed(() => this.newLines().length > 0);
+    readonly items = computed<OrderItem[]>(() => [...this.sentLines(), ...this.pendingLines()]);
+    readonly hasNewItems = computed(() => this.pendingLines().length > 0);
 
     readonly totalQuantity = computed(() => countItems(this.items()));
     readonly totalAmount = computed(() => sumItems(this.items()));
@@ -103,7 +109,7 @@ export class OrderService implements OnDestroy {
         if (!tId) return false;
 
         const currentUser = this.authService.user();
-        const linesToSend: OrderItem[] = this.newLines().map(line => ({
+        const linesToSend: OrderItem[] = this.pendingLines().map(line => ({
             ...line,
             enviado: true,
             agregado_por: currentUser?.id ?? 'desconocido',
@@ -174,9 +180,12 @@ export class OrderService implements OnDestroy {
                 tx.update(tableRef, { estado: 'ocupada', id_orden_actual: newOrderRef.id });
             });
 
-            // Limpiar carrito local solo si el servidor confirmó
-            this.newLines.set([]);
-            this.tableId.set(null);
+            // Quitar del carrito local solo las líneas confirmadas, y solo si seguimos en la misma mesa
+            // (si la confirmación llegó tarde, el mesero pudo haber abierto otra mesa).
+            if (this.tableId() === tId) {
+                const sentIds = new Set(linesToSend.map(l => l.line_id));
+                this.newLines.update(lines => lines.filter(l => !sentIds.has(l.line_id)));
+            }
             return true;
         } catch (error) {
             console.error('Error al guardar orden:', error);

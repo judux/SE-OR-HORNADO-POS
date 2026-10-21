@@ -9,6 +9,7 @@ import { ToastService } from '../../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { Order, OrderItem, Product } from '../../../shared/interfaces';
 import { detectOrderChanges } from '../../../core/services/order.logic';
+import { ConnectionService, TimeoutError } from '../../../core/services/connection.service';
 
 @Component({
   selector: 'app-cashier-dashboard',
@@ -609,6 +610,7 @@ export class CashierDashboardComponent implements OnDestroy {
   public productService = inject(ProductService);
   public pettyCashService = inject(PettyCashService);
   public shiftService = inject(ShiftService);
+  private connection = inject(ConnectionService);
   private toast = inject(ToastService);
   private confirmDialog = inject(ConfirmDialogService);
 
@@ -811,11 +813,21 @@ export class CashierDashboardComponent implements OnDestroy {
   async confirmPayment(): Promise<void> {
     const order = this.selectedOrder();
     if (order && !this.isPaying()) {
+      if (!this.connection.online()) {
+        this.toast.show({ message: 'Sin conexión: el cobro NO se registró. Anótalo en papel si el cliente ya pagó.', type: 'error', icon: 'wifi_off', duration: 6000 });
+        return;
+      }
       this.isPaying.set(true);
-      const success = await this.orderService.closeOrder(
-        order.id,
-        this.paymentMethod()
-      );
+      let success = false;
+      try {
+        success = await this.connection.withTimeout(this.orderService.closeOrder(order.id, this.paymentMethod()), 10000);
+      } catch (error) {
+        this.isPaying.set(false);
+        if (error instanceof TimeoutError) {
+          this.toast.show({ message: 'Cobro no confirmado todavía. Si la mesa sigue en la lista, NO está cobrada; reintentar es seguro.', type: 'warning', icon: 'wifi_off', duration: 7000 });
+          return;
+        }
+      }
       this.isPaying.set(false);
 
       if (success) {
