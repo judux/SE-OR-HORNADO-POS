@@ -12,6 +12,14 @@ export const routes: Routes = [
         loadComponent: () => import('./features/auth/device-setup/device-setup.component').then(m => m.DeviceSetupComponent)
     },
     {
+        path: 'registro',
+        loadComponent: () => import('./features/onboarding/registro/registro.component').then(m => m.RegistroComponent)
+    },
+    {
+        path: 'unirse/:rid/:token',
+        loadComponent: () => import('./features/onboarding/unirse/unirse.component').then(m => m.UnirseComponent)
+    },
+    {
         path: 'plataforma',
         loadComponent: () => import('./features/platform/platform-login/platform-login.component').then(m => m.PlatformLoginComponent)
     },

@@ -1,14 +1,17 @@
-import { Component, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { TenantService } from '../../../core/tenant/tenant.service';
+import { Component, effect, inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { TenantService, AccountKind } from '../../../core/tenant/tenant.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { GoogleSignInComponent } from '../../../shared/components/google-sign-in/google-sign-in.component';
 
+/**
+ * Pantalla de un equipo que todavía no pertenece a un restaurante (o cuyo restaurante está suspendido).
+ * No tiene ningún enlace hacia la administración de la plataforma.
+ */
 @Component({
   selector: 'app-device-setup',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [GoogleSignInComponent],
   template: `
     <div class="min-h-[100dvh] w-full flex items-center justify-center bg-dark-900 p-4">
       <div class="w-full max-w-sm">
@@ -23,12 +26,12 @@ import { AuthService } from '../../../core/auth/auth.service';
                 <div class="text-center">
                   <span class="material-symbols-rounded text-5xl text-emerald-400">verified</span>
                   <h1 class="text-white text-lg font-extrabold mt-2">{{ tenant.restaurant()?.nombre }}</h1>
-                  <p class="text-dark-300 text-sm mt-1">Este equipo está activado</p>
+                  <p class="text-dark-300 text-sm mt-1">Este equipo está listo</p>
                   <button (click)="goToLogin()" class="w-full mt-6 py-3.5 rounded-2xl bg-primary-500 hover:bg-primary-600 text-white font-bold">
-                    Ir al ingreso con PIN
+                    Ingresar con PIN
                   </button>
-                  <button (click)="deactivate()" class="w-full mt-3 py-3 rounded-2xl text-dark-300 hover:text-white text-sm font-semibold">
-                    Desactivar este equipo
+                  <button (click)="signOut()" class="w-full mt-3 py-3 rounded-2xl text-dark-300 hover:text-white text-sm font-semibold">
+                    Desvincular este equipo
                   </button>
                 </div>
               } @else {
@@ -36,8 +39,8 @@ import { AuthService } from '../../../core/auth/auth.service';
                   <span class="material-symbols-rounded text-5xl text-red-400">block</span>
                   <h1 class="text-white text-lg font-extrabold mt-2">Restaurante suspendido</h1>
                   <p class="text-dark-300 text-sm mt-1">El acceso de {{ tenant.restaurant()?.nombre ?? 'este restaurante' }} está pausado. Comunícate con tu proveedor del sistema.</p>
-                  <button (click)="deactivate()" class="w-full mt-6 py-3 rounded-2xl bg-dark-700 text-white text-sm font-semibold">
-                    Usar otra cuenta
+                  <button (click)="signOut()" class="w-full mt-6 py-3 rounded-2xl bg-dark-700 text-white text-sm font-semibold">
+                    Desvincular este equipo
                   </button>
                 </div>
               }
@@ -51,59 +54,43 @@ import { AuthService } from '../../../core/auth/auth.service';
                 <button (click)="tenant.refresh()" class="w-full mt-6 py-3.5 rounded-2xl bg-primary-500 hover:bg-primary-600 text-white font-bold">
                   Reintentar
                 </button>
-                <button (click)="deactivate()" class="w-full mt-3 py-3 rounded-2xl text-dark-300 hover:text-white text-sm font-semibold">
+              </div>
+            }
+
+            @case ('unlinked') {
+              <div class="text-center">
+                <span class="material-symbols-rounded text-5xl text-amber-400">hourglass_top</span>
+                <h1 class="text-white text-lg font-extrabold mt-2">Tu cuenta aún no tiene restaurante</h1>
+                <p class="text-dark-300 text-sm mt-1">{{ tenant.account().email || 'Esta cuenta' }} no está vinculada a ningún restaurante.</p>
+                <button (click)="goToRegistro()" class="w-full mt-6 py-3.5 rounded-2xl bg-primary-500 hover:bg-primary-600 text-white font-bold">
+                  Ver o enviar mi solicitud
+                </button>
+                <button (click)="signOut()" class="w-full mt-3 py-3 rounded-2xl text-dark-300 hover:text-white text-sm font-semibold">
                   Usar otra cuenta
                 </button>
               </div>
             }
 
-            @case ('platform') {
-              <div class="text-center">
-                <span class="material-symbols-rounded text-5xl text-amber-400">admin_panel_settings</span>
-                <h1 class="text-white text-lg font-extrabold mt-2">Cuenta de la plataforma</h1>
-                <p class="text-dark-300 text-sm mt-1">Esta cuenta administra restaurantes; no se usa para tomar pedidos.</p>
-                <a routerLink="/plataforma/panel" class="block w-full mt-6 py-3.5 rounded-2xl bg-primary-500 text-white font-bold">Ir al panel de plataforma</a>
-                <button (click)="deactivate()" class="w-full mt-3 py-3 rounded-2xl text-dark-300 hover:text-white text-sm font-semibold">Cerrar sesión</button>
-              </div>
-            }
-
             @default {
               <div class="text-center mb-6">
-                <span class="material-symbols-rounded text-4xl text-amber-400">phonelink_lock</span>
-                <h1 class="text-white text-lg font-extrabold mt-2">Activar este equipo</h1>
-                <p class="text-dark-300 text-sm mt-1">Usa la cuenta de tu restaurante. Solo se hace una vez por celular, tablet o PC.</p>
+                <span class="material-symbols-rounded text-4xl text-amber-400">storefront</span>
+                <h1 class="text-white text-lg font-extrabold mt-2">Bienvenido</h1>
+                <p class="text-dark-300 text-sm mt-1">Este equipo todavía no está vinculado a un restaurante.</p>
               </div>
 
-              @if (tenant.account().kind === 'unlinked') {
-                <p class="text-amber-300 text-sm font-semibold text-center bg-amber-500/10 border border-amber-500/30 rounded-2xl py-2.5 px-3 mb-4">
-                  La cuenta {{ tenant.account().email }} no pertenece a ningún restaurante.
-                  <button (click)="deactivate()" class="underline ml-1">Usar otra</button>
+              <div class="rounded-2xl bg-dark-900/70 border border-dark-700 p-4 mb-4">
+                <p class="text-white font-bold text-sm flex items-center gap-2">
+                  <span class="material-symbols-rounded text-base text-emerald-400">badge</span> ¿Eres mesero o cajero?
                 </p>
-              }
+                <p class="text-dark-300 text-sm mt-1">Pídele a tu administrador el <strong class="text-white">enlace de tu restaurante</strong> y ábrelo en este celular.</p>
+              </div>
 
-              <form (ngSubmit)="activate()" class="space-y-4">
-                <div>
-                  <label for="device-email" class="block text-xs font-bold text-dark-300 mb-1.5">Correo de la cuenta del restaurante</label>
-                  <input id="device-email" type="email" name="email" [(ngModel)]="email" autocomplete="username"
-                    class="w-full px-4 py-3.5 rounded-2xl bg-dark-900 border border-dark-600 text-white text-base focus:border-primary-500 outline-none" required>
-                </div>
-                <div>
-                  <label for="device-password" class="block text-xs font-bold text-dark-300 mb-1.5">Contraseña</label>
-                  <input id="device-password" type="password" name="password" [(ngModel)]="password" autocomplete="current-password"
-                    class="w-full px-4 py-3.5 rounded-2xl bg-dark-900 border border-dark-600 text-white text-base focus:border-primary-500 outline-none" required>
-                </div>
-
-                @if (error()) {
-                  <p class="text-red-400 text-sm font-bold text-center bg-red-500/15 border border-red-500/30 rounded-2xl py-2.5 px-3">{{ error() }}</p>
-                }
-
-                <button type="submit" [disabled]="isLoading() || !email || !password"
-                  class="w-full py-3.5 rounded-2xl bg-primary-500 hover:bg-primary-600 text-white font-bold disabled:opacity-50">
-                  {{ isLoading() ? 'Activando...' : 'Activar equipo' }}
-                </button>
-              </form>
-
-              <a routerLink="/plataforma" class="block text-center text-dark-400 hover:text-dark-200 text-xs mt-6">Administración de la plataforma</a>
+              <div class="rounded-2xl bg-dark-900/70 border border-dark-700 p-4">
+                <p class="text-white font-bold text-sm flex items-center gap-2 mb-3">
+                  <span class="material-symbols-rounded text-base text-amber-400">admin_panel_settings</span> ¿Eres el administrador?
+                </p>
+                <app-google-sign-in />
+              </div>
             }
           }
         </div>
@@ -116,41 +103,50 @@ export class DeviceSetupComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
 
-  email = '';
-  password = '';
-  error = signal('');
-  isLoading = signal(false);
+  /**
+   * Al iniciar sesión aquí, la cuenta cambia de tipo y se navega según el resultado.
+   * (No se usa el evento del botón: el botón se destruye al cambiar la vista y el evento se perdería.)
+   * El primer estado al cargar la página no navega: así se puede ver "Este equipo está listo" o "Desvincular".
+   */
+  private kindOnLoad: AccountKind | null = null;
+  private pendingRoute = false;
+  private routeOnSignIn = effect(() => {
+    const kind = this.tenant.account().kind;
+    const activeRid = this.tenant.activeRid();
+    if (kind === 'loading') return;
+    if (this.kindOnLoad === null) { this.kindOnLoad = kind; return; }
+    if (kind !== this.kindOnLoad) { this.kindOnLoad = kind; this.pendingRoute = true; }
+    if (!this.pendingRoute) return;
 
-  async activate(): Promise<void> {
-    this.error.set('');
-    this.isLoading.set(true);
-    try {
-      const account = await this.tenant.signIn(this.email, this.password);
-      this.password = '';
-      if (account.kind === 'device' && this.tenant.activeRid()) {
+    // Las acciones van fuera del effect (queueMicrotask): Angular no permite escribir signals dentro de un effect
+    if (kind === 'device') {
+      if (!activeRid) return; // esperar a que llegue el estado del restaurante
+      this.pendingRoute = false;
+      queueMicrotask(() => {
         this.authService.clearSession();
         this.goToLogin();
-      }
-      // Otros casos (sin restaurante, suspendido, plataforma) los muestra la misma pantalla
-    } catch (e: any) {
-      const code = e?.code ?? '';
-      if (code.includes('network')) {
-        this.error.set('Sin conexión. Revisa el internet e intenta de nuevo.');
-      } else if (code.includes('too-many-requests')) {
-        this.error.set('Demasiados intentos. Espera unos minutos.');
-      } else {
-        this.error.set('Correo o contraseña incorrectos.');
-      }
-    } finally {
-      this.isLoading.set(false);
+      });
+    } else if (kind === 'platform') {
+      this.pendingRoute = false;
+      queueMicrotask(() => this.router.navigate(['/plataforma/panel']));
+    } else if (kind === 'unlinked') {
+      this.pendingRoute = false;
+      // Cuenta de Google sin restaurante: registro / estado de su solicitud
+      queueMicrotask(() => this.router.navigate(['/registro']));
+    } else {
+      this.pendingRoute = false;
     }
-  }
+  });
 
   goToLogin(): void {
     this.router.navigate(['/login']);
   }
 
-  async deactivate(): Promise<void> {
+  goToRegistro(): void {
+    this.router.navigate(['/registro']);
+  }
+
+  async signOut(): Promise<void> {
     this.authService.clearSession();
     await this.tenant.signOut();
   }

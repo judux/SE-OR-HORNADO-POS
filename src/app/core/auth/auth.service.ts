@@ -1,6 +1,6 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { query, where, getDocs } from '@angular/fire/firestore';
+import { query, where, getDocs, updateDoc } from '@angular/fire/firestore';
 import { User } from '../../shared/interfaces';
 import { TenantService } from '../tenant/tenant.service';
 
@@ -37,6 +37,27 @@ export class AuthService {
         this.currentUser.set(user);
         this.saveSession(user);
         return user;
+    }
+
+    /**
+     * Si la cuenta de Google de este equipo es un administrador que aún no eligió su PIN
+     * (recién aprobado, o se lo restablecieron), devuelve ese usuario.
+     */
+    async pendingPinSetup(): Promise<User | null> {
+        const fbUser = this.tenant.currentUser();
+        if (!fbUser || fbUser.isAnonymous || !this.tenant.activeRid()) return null;
+        const snapshot = await getDocs(query(this.tenant.col('users'), where('google_uid', '==', fbUser.uid)));
+        const pending = snapshot.docs.find(d => d.data()['pin_pendiente'] === true && d.data()['activo'] !== false);
+        return pending ? ({ id: pending.id, ...pending.data() } as User) : null;
+    }
+
+    /** El administrador elige su propio PIN (único dentro del restaurante). */
+    async setOwnPin(userId: string, pin: string): Promise<'ok' | 'taken' | 'invalid'> {
+        if (!/^\d{4}$/.test(pin)) return 'invalid';
+        const taken = await getDocs(query(this.tenant.col('users'), where('pin_acceso', '==', pin)));
+        if (taken.docs.some(d => d.id !== userId)) return 'taken';
+        await updateDoc(this.tenant.docRef('users', userId), { pin_acceso: pin, pin_pendiente: false });
+        return 'ok';
     }
 
     /** La sesión del empleado solo vale en el restaurante donde inició sesión. */

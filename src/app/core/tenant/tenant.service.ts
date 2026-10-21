@@ -1,8 +1,11 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { Auth, authState, signInWithEmailAndPassword, signOut, User as FirebaseUser } from '@angular/fire/auth';
 import {
-    Firestore, doc, getDoc, docSnapshots, collection,
+    Auth, authState, signInWithEmailAndPassword, signOut, signInWithPopup, signInAnonymously,
+    GoogleAuthProvider, User as FirebaseUser
+} from '@angular/fire/auth';
+import {
+    Firestore, doc, getDoc, docSnapshots, setDoc, Timestamp,
     CollectionReference, DocumentReference
 } from '@angular/fire/firestore';
 import { BehaviorSubject, Observable, Subscription, distinctUntilChanged, filter, firstValueFrom, of, switchMap, catchError } from 'rxjs';
@@ -80,6 +83,7 @@ export class TenantService {
 
     private restaurantSub?: Subscription;
     private watchedRid: string | null = null;
+    private watchReady: Promise<void> | null = null;
     private resolution = 0; // solo se aplica la identificación más reciente
 
     constructor() {
@@ -178,9 +182,14 @@ export class TenantService {
 
     /** Escucha el documento del restaurante en vivo (si lo suspenden, el equipo se bloquea al instante). */
     private watchRestaurant(rid: string): Promise<void> {
+        // Ya se escucha (o se está empezando a escuchar) este restaurante: se reutiliza la misma espera.
+        // Reiniciarla dejaría colgada a quien ya la estaba esperando (dos identificaciones casi simultáneas).
+        if (this.watchedRid === rid && this.watchReady) {
+            return this.watchReady;
+        }
         this.stopWatchingRestaurant();
         this.watchedRid = rid;
-        return new Promise(resolve => {
+        this.watchReady = new Promise(resolve => {
             let first = true;
             this.restaurantSub = docSnapshots(doc(this.firestore, PLATFORM_COLLECTIONS.restaurants, rid)).pipe(
                 catchError(() => of(null))
@@ -192,21 +201,73 @@ export class TenantService {
                     this.restaurant.set(snap.exists() ? ({ id: rid, ...snap.data() } as Restaurant) : null);
                     this.saveCache();
                 }
-                if (first) { first = false; resolve(); }
+                // La espera termina con la primera lectura CONFIRMADA (o un error); una lectura de caché
+                // sin confirmar no cuenta, porque todavía no se sabe el estado real del restaurante.
+                if (first && (confirmed || snap === null)) { first = false; resolve(); }
             });
+            // Sin señal puede que nunca llegue una lectura confirmada: no dejar la app esperando para siempre
+            setTimeout(() => { if (first) { first = false; resolve(); } }, 8000);
         });
+        return this.watchReady;
     }
 
     private stopWatchingRestaurant(): void {
         this.restaurantSub?.unsubscribe();
         this.restaurantSub = undefined;
+        this.watchReady = null;
         this.watchedRid = null;
         this.restaurant.set(null);
     }
 
-    async signIn(email: string, password: string): Promise<AccountState> {
+    /** Entrar con Google (administradores de restaurante y dueño de la plataforma). */
+    async signInWithGoogle(): Promise<AccountState> {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        const cred = await signInWithPopup(this.auth, provider);
+        return this.runResolution(cred.user);
+    }
+
+    /** Solo para el emulador local (pruebas): entrar con correo y contraseña. */
+    async signInWithEmailForTesting(email: string, password: string): Promise<AccountState> {
         const cred = await signInWithEmailAndPassword(this.auth, email.trim(), password);
         return this.runResolution(cred.user);
+    }
+
+    /**
+     * Vincula este equipo a un restaurante con el enlace que comparte su administrador.
+     * El celular del personal entra de forma anónima (sin cuenta de Google); las reglas solo aceptan
+     * el vínculo si el código del enlace es el vigente del restaurante y el restaurante está activo.
+     */
+    async joinRestaurant(rid: string, token: string): Promise<'joined' | 'already' | 'other-restaurant' | 'invalid'> {
+        // Esperar a que Firebase recupere la sesión guardada (si no, se crearía una cuenta anónima
+        // encima de la sesión de Google del administrador)
+        await this.auth.authStateReady();
+        if (this.auth.currentUser) {
+            const current = await this.whenResolved();
+            if (current.kind === 'device') {
+                return this.restaurant()?.id === rid ? 'already' : 'other-restaurant';
+            }
+            if (current.kind === 'platform') return 'other-restaurant';
+            await signOut(this.auth); // cuenta sin restaurante: se reemplaza
+        }
+
+        const cred = await signInAnonymously(this.auth);
+        try {
+            await setDoc(doc(this.firestore, PLATFORM_COLLECTIONS.devices, cred.user.uid), {
+                rid, token, tipo: 'personal', creado_en: Timestamp.now()
+            });
+        } catch {
+            await cred.user.delete().catch(() => { });
+            await this.runResolution(null);
+            return 'invalid';
+        }
+        await this.runResolution(cred.user);
+        return 'joined';
+    }
+
+    /** UID y tipo de inicio de sesión de la cuenta actual. */
+    currentUser(): FirebaseUser | null {
+        return this.auth.currentUser;
     }
 
     async signOut(): Promise<void> {

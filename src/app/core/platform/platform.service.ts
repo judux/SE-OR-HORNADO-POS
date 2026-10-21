@@ -1,26 +1,18 @@
 import { Injectable, inject } from '@angular/core';
-import { Auth, createUserWithEmailAndPassword } from '@angular/fire/auth';
+import { Auth } from '@angular/fire/auth';
 import {
-    Firestore, collection, collectionData, doc, getDocs, query, where,
-    writeBatch, updateDoc, setDoc, Timestamp
+    Firestore, collection, collectionData, doc, getDoc, getDocs, query, where,
+    writeBatch, updateDoc, Timestamp
 } from '@angular/fire/firestore';
-import { initializeApp, deleteApp } from 'firebase/app';
-import {
-    getAuth as getRawAuth, connectAuthEmulator as connectRawAuthEmulator,
-    createUserWithEmailAndPassword as createRawUser, signOut as rawSignOut
-} from 'firebase/auth';
 import { Observable, map } from 'rxjs';
-import { Restaurant } from '../../shared/interfaces';
-import { environment } from '../../../environments/environment';
+import { Restaurant, Solicitud } from '../../shared/interfaces';
 import { TenantService } from '../tenant/tenant.service';
 import { restaurantCol, restaurantDoc, PLATFORM_COLLECTIONS as PC } from '../tenant/collections';
+import { newJoinToken } from '../tenant/tokens';
 
-export interface NewRestaurantInput {
-    nombre: string;
-    cuentaEmail: string;
-    cuentaPassword: string;
-    adminNombre: string;
-    adminPin: string;
+export interface ApproveInput {
+    nombreRestaurante: string;
+    nombreAdmin: string;
     copiarLegado: boolean;
 }
 
@@ -40,7 +32,7 @@ export function isValidPin(pin: string): boolean {
 
 /**
  * Administración de la plataforma (solo el dueño de la plataforma).
- * Todo se hace desde la app: no hace falta entrar a la consola de Firebase.
+ * Los restaurantes llegan como SOLICITUDES (cuenta de Google del futuro admin) y aquí se aprueban.
  */
 @Injectable({
     providedIn: 'root'
@@ -58,22 +50,31 @@ export class PlatformService {
         );
     }
 
+    pendingRequests$(): Observable<Solicitud[]> {
+        const q = query(collection(this.firestore, PC.solicitudes), where('estado', '==', 'pendiente'));
+        return collectionData(q, { idField: 'uid' }).pipe(map(list => list as Solicitud[]));
+    }
+
+    /** ¿Ya tiene dueño la plataforma? (requiere sesión iniciada) */
+    async ownerExists(): Promise<boolean> {
+        return (await getDoc(doc(this.firestore, PC.platform, 'owner'))).exists();
+    }
+
     /**
-     * Crea la cuenta del dueño de la plataforma. Solo funciona UNA vez:
+     * La cuenta actual (Google) reclama la plataforma. Solo funciona UNA vez:
      * las reglas rechazan el reclamo si ya existe platform/owner.
      */
-    async claimPlatform(nombre: string, email: string, password: string): Promise<void> {
-        const cred = await createUserWithEmailAndPassword(this.auth, email.trim(), password);
-        const uid = cred.user.uid;
+    async claimPlatform(): Promise<void> {
+        const user = this.auth.currentUser;
+        if (!user) throw new PlatformError('Primero inicia sesión con Google.');
         const batch = writeBatch(this.firestore);
-        batch.set(doc(this.firestore, PC.platformAdmins, uid), { email: email.trim(), nombre: nombre.trim(), creado_en: Timestamp.now() });
-        batch.set(doc(this.firestore, PC.platform, 'owner'), { uid, email: email.trim(), creado_en: Timestamp.now() });
+        const now = Timestamp.now();
+        batch.set(doc(this.firestore, PC.platformAdmins, user.uid), { email: user.email ?? '', nombre: user.displayName ?? '', creado_en: now });
+        batch.set(doc(this.firestore, PC.platform, 'owner'), { uid: user.uid, email: user.email ?? '', creado_en: now });
         try {
             await batch.commit();
-        } catch (error) {
-            // La plataforma ya tenía dueño: se borra la cuenta recién creada para no dejarla huérfana
-            await cred.user.delete().catch(() => { });
-            throw new PlatformError('Esta plataforma ya tiene dueño. Inicia sesión con esa cuenta.');
+        } catch {
+            throw new PlatformError('Esta plataforma ya tiene dueño.');
         }
         await this.tenant.refresh();
     }
@@ -93,40 +94,39 @@ export class PlatformService {
     }
 
     /**
-     * Crea un restaurante completo:
-     * 1. La cuenta del restaurante en Firebase Auth (en una instancia aparte, para no cerrar tu sesión).
-     * 2. En un solo batch: el restaurante, el vínculo cuenta→restaurante, su primer admin y el turno inicial.
-     * 3. Opcional: copia el menú y las mesas de la versión anterior.
+     * Aprueba una solicitud: crea el restaurante y vincula la cuenta de Google del solicitante
+     * como su administrador, todo en un solo batch. El admin elige su propio PIN al entrar por primera vez.
      */
-    async createRestaurant(input: NewRestaurantInput): Promise<string> {
-        const nombre = input.nombre.trim();
-        const email = input.cuentaEmail.trim().toLowerCase();
+    async approveRequest(solicitud: Solicitud, input: ApproveInput): Promise<string> {
+        const nombre = input.nombreRestaurante.trim();
+        const nombreAdmin = input.nombreAdmin.trim();
         if (!nombre) throw new PlatformError('Escribe el nombre del restaurante.');
-        if (!email.includes('@')) throw new PlatformError('El correo de la cuenta no es válido.');
-        if (input.cuentaPassword.length < 8) throw new PlatformError('La contraseña debe tener al menos 8 caracteres.');
-        if (!input.adminNombre.trim()) throw new PlatformError('Escribe el nombre del administrador.');
-        if (!isValidPin(input.adminPin)) throw new PlatformError('El PIN debe tener exactamente 4 dígitos.');
+        if (!nombreAdmin) throw new PlatformError('Escribe el nombre del administrador.');
+
+        const existingDevice = await getDoc(doc(this.firestore, PC.devices, solicitud.uid));
+        if (existingDevice.exists()) throw new PlatformError('Esa cuenta de Google ya administra otro restaurante.');
 
         const rid = `${slugify(nombre)}-${Math.random().toString(36).slice(2, 6)}`;
-        const uid = await this.createAccountWithoutSwitchingSession(email, input.cuentaPassword);
-
-        const batch = writeBatch(this.firestore);
         const now = Timestamp.now();
+        const batch = writeBatch(this.firestore);
+
         batch.set(doc(this.firestore, PC.restaurants, rid), {
             nombre,
             estado: 'activo',
-            cuenta_email: email,
-            cuenta_uid: uid,
+            cuenta_email: solicitud.email,
+            admin_uid: solicitud.uid,
             creado_en: now,
             creado_por: this.auth.currentUser?.uid ?? ''
         });
-        batch.set(doc(this.firestore, PC.devices, uid), { rid, email, creado_en: now });
+        batch.set(doc(this.firestore, PC.devices, solicitud.uid), { rid, email: solicitud.email, tipo: 'admin', creado_en: now });
         batch.set(doc(restaurantCol(this.firestore, rid, 'users')), {
-            nombre: input.adminNombre.trim(),
+            nombre: nombreAdmin,
             rol: 'admin',
-            pin_acceso: input.adminPin,
-            activo: true
+            activo: true,
+            google_uid: solicitud.uid,
+            pin_pendiente: true // el admin elige su PIN la primera vez que entra
         });
+        batch.set(restaurantDoc(this.firestore, rid, 'private', 'acceso'), { token: newJoinToken(), actualizado_en: now });
         batch.set(restaurantDoc(this.firestore, rid, 'config', 'turno_actual'), { inicio: now, abierto_por: 'plataforma' });
 
         if (input.copiarLegado) {
@@ -140,52 +140,34 @@ export class PlatformService {
             }));
         }
 
+        batch.update(doc(this.firestore, PC.solicitudes, solicitud.uid), { estado: 'aprobada', rid, resuelta_en: now });
+
         try {
             await batch.commit();
         } catch (error) {
-            console.error('Error al crear restaurante:', error);
-            throw new PlatformError(`Se creó la cuenta ${email} pero no el restaurante. Intenta de nuevo con otro correo.`);
+            console.error('Error al aprobar solicitud:', error);
+            throw new PlatformError('No se pudo crear el restaurante. Revisa la conexión e intenta de nuevo.');
         }
         return rid;
     }
 
-    private async createAccountWithoutSwitchingSession(email: string, password: string): Promise<string> {
-        const app = initializeApp(environment.firebase, `crear-cuenta-${Date.now()}`);
-        try {
-            const auth = getRawAuth(app);
-            if (environment.useEmulators) {
-                connectRawAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-            }
-            const cred = await createRawUser(auth, email, password);
-            await rawSignOut(auth);
-            return cred.user.uid;
-        } catch (e: any) {
-            const code = e?.code ?? '';
-            if (code.includes('email-already-in-use')) throw new PlatformError('Ese correo ya tiene una cuenta. Usa otro correo para este restaurante.');
-            if (code.includes('weak-password')) throw new PlatformError('La contraseña es muy débil.');
-            if (code.includes('invalid-email')) throw new PlatformError('El correo no es válido.');
-            throw new PlatformError('No se pudo crear la cuenta del restaurante. Revisa la conexión.');
-        } finally {
-            await deleteApp(app).catch(() => { });
-        }
+    async rejectRequest(solicitud: Solicitud): Promise<void> {
+        await updateDoc(doc(this.firestore, PC.solicitudes, solicitud.uid), { estado: 'rechazada', resuelta_en: Timestamp.now() });
     }
 
     async setEstado(rid: string, estado: Restaurant['estado']): Promise<void> {
         await updateDoc(doc(this.firestore, PC.restaurants, rid), { estado });
     }
 
-    async rename(rid: string, nombre: string): Promise<void> {
-        if (!nombre.trim()) throw new PlatformError('El nombre no puede quedar vacío.');
-        await updateDoc(doc(this.firestore, PC.restaurants, rid), { nombre: nombre.trim() });
-    }
-
-    /** Agrega otro administrador a un restaurante (p. ej. si el dueño olvidó su PIN). */
-    async addAdmin(rid: string, nombre: string, pin: string): Promise<void> {
-        if (!nombre.trim()) throw new PlatformError('Escribe el nombre del administrador.');
-        if (!isValidPin(pin)) throw new PlatformError('El PIN debe tener exactamente 4 dígitos.');
-        const usersRef = restaurantCol(this.firestore, rid, 'users');
-        const existing = await getDocs(query(usersRef, where('pin_acceso', '==', pin)));
-        if (!existing.empty) throw new PlatformError('Ese PIN ya lo usa otra persona en este restaurante.');
-        await setDoc(doc(usersRef), { nombre: nombre.trim(), rol: 'admin', pin_acceso: pin, activo: true });
+    /**
+     * Si el administrador olvidó su PIN: se borra y la próxima vez que entre con su Google elige uno nuevo.
+     */
+    async resetAdminPin(restaurant: Restaurant): Promise<void> {
+        if (!restaurant.admin_uid) throw new PlatformError('Este restaurante no tiene un administrador con Google.');
+        const users = await getDocs(query(restaurantCol(this.firestore, restaurant.id, 'users'), where('google_uid', '==', restaurant.admin_uid)));
+        if (users.empty) throw new PlatformError('No se encontró al administrador de este restaurante.');
+        const batch = writeBatch(this.firestore);
+        users.forEach(u => batch.update(u.ref, { pin_acceso: null, pin_pendiente: true }));
+        await batch.commit();
     }
 }

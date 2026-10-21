@@ -58,11 +58,12 @@ for (let n = 1; n <= 4; n++) {
 console.log(`Emulador listo (como producción): ${products.length} productos y 4 mesas de la versión anterior.`);
 
 if (!process.argv.includes('--demo')) {
-    console.log('Siguiente paso: http://localhost:4200/plataforma → "Primera vez" para reclamar la plataforma.');
+    console.log('Siguiente paso: http://localhost:4200/plataforma → entrar y reclamar la plataforma.');
     process.exit(0);
 }
 
-// --demo: además crea la plataforma, dos restaurantes y su personal (para probar rápido)
+// --demo: plataforma, dos restaurantes con su admin (cuenta "Google" simulada con correo en el emulador),
+// personal, códigos de enlace y una solicitud pendiente.
 async function account(email) {
     const res = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key', {
         method: 'POST',
@@ -73,22 +74,23 @@ async function account(email) {
     return (await res.json()).localId;
 }
 
-const now = new Date().toISOString();
 const ownerUid = await account('dueno@prueba.app');
 await put('platform_admins', ownerUid, { email: 'dueno@prueba.app', nombre: 'Dueño Prueba' });
 await put('platform', 'owner', { uid: ownerUid, email: 'dueno@prueba.app' });
 
 const restaurantes = [
-    { rid: 'senor-hornado-demo', nombre: 'Señor Hornado', email: 'caja@prueba.app', copiar: true,
-      personal: [['Johan', 'admin', '4821'], ['Carlos', 'mesero', '1111'], ['Ana', 'cajero', '2222']] },
-    { rid: 'asadero-prueba-demo', nombre: 'Asadero Prueba', email: 'asadero@prueba.app', copiar: false,
-      personal: [['Admin Asadero', 'admin', '4821']] },
+    { rid: 'senor-hornado-demo', nombre: 'Señor Hornado', email: 'johan@prueba.app', token: 'demo-codigo-senor-hornado-123456', copiar: true,
+      admin: ['Johan', '4821'], personal: [['Carlos', 'mesero', '1111'], ['Ana', 'cajero', '2222']] },
+    { rid: 'asadero-prueba-demo', nombre: 'Asadero Prueba', email: 'asadero@prueba.app', token: 'demo-codigo-asadero-prueba-12345', copiar: false,
+      admin: ['Admin Asadero', '4821'], personal: [] },
 ];
 for (const r of restaurantes) {
     const uid = await account(r.email);
-    await put('restaurants', r.rid, { nombre: r.nombre, estado: 'activo', cuenta_email: r.email, cuenta_uid: uid, creado_por: ownerUid });
-    await put('devices', uid, { rid: r.rid, email: r.email });
+    await put('restaurants', r.rid, { nombre: r.nombre, estado: 'activo', cuenta_email: r.email, admin_uid: uid, creado_por: ownerUid });
+    await put('devices', uid, { rid: r.rid, email: r.email, tipo: 'admin' });
     await put(`restaurants/${r.rid}/config`, 'turno_actual', { abierto_por: 'plataforma' });
+    await put(`restaurants/${r.rid}/private`, 'acceso', { token: r.token });
+    await put(`restaurants/${r.rid}/users`, 'admin', { nombre: r.admin[0], rol: 'admin', pin_acceso: r.admin[1], activo: true, google_uid: uid, pin_pendiente: false });
     for (const [i, [nombre, rol, pin]] of r.personal.entries()) {
         await put(`restaurants/${r.rid}/users`, `u${i}`, { nombre, rol, pin_acceso: pin, activo: true });
     }
@@ -99,7 +101,14 @@ for (const r of restaurantes) {
         }
     }
 }
+
+// Solicitud pendiente de un restaurante nuevo (para probar aprobar)
+const pedroUid = await account('pedro@prueba.app');
+await put('solicitudes', pedroUid, { email: 'pedro@prueba.app', nombre_restaurante: 'Parrilla Don Pedro', nombre_contacto: 'Pedro', telefono: '300 000 0000', estado: 'pendiente' });
+
 console.log('Demo creada (contraseña de todas las cuentas: clave-de-prueba-123):');
-console.log('  Plataforma: dueno@prueba.app');
-console.log('  Señor Hornado: caja@prueba.app → PINs admin 4821 · mesero 1111 · cajero 2222');
-console.log('  Asadero Prueba: asadero@prueba.app → PIN admin 4821');
+console.log('  Plataforma: dueno@prueba.app  → http://localhost:4200/plataforma');
+console.log('  Señor Hornado: admin johan@prueba.app (PIN 4821) · mesero 1111 · cajero 2222');
+console.log('    Enlace del personal: http://localhost:4200/unirse/senor-hornado-demo/demo-codigo-senor-hornado-123456');
+console.log('  Asadero Prueba: admin asadero@prueba.app (PIN 4821)');
+console.log('  Solicitud pendiente: pedro@prueba.app → "Parrilla Don Pedro"');

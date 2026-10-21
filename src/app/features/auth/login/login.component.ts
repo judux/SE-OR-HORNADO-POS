@@ -1,8 +1,9 @@
-import { Component, signal, HostListener, inject } from '@angular/core';
+import { Component, signal, computed, HostListener, inject } from '@angular/core';
 import { TenantService } from '../../../core/tenant/tenant.service';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
+import { User } from '../../../shared/interfaces';
 
 @Component({
   selector: 'app-login',
@@ -25,7 +26,10 @@ import { ToastService } from '../../../shared/components/toast/toast.service';
         <!-- Card del PIN — Dark Glass High Contrast -->
         <div class="bg-dark-800/90 dark:bg-dark-800/90 backdrop-blur-2xl rounded-3xl p-7 border border-dark-700/80 shadow-2xl"
              [class.animate-shake]="shakeActive()">
-          <p class="text-center text-dark-300 text-sm font-semibold mb-6 tracking-wide">Ingresa tu PIN de acceso</p>
+          @if (mode() !== 'login') {
+            <p class="text-center text-amber-300 text-sm font-bold mb-2">Hola {{ setupUser()?.nombre }} 👋</p>
+          }
+          <p class="text-center text-dark-300 text-sm font-semibold mb-6 tracking-wide">{{ prompt() }}</p>
 
           <!-- Indicador de dígitos -->
           <div class="flex justify-center gap-4 mb-7">
@@ -122,6 +126,16 @@ export class LoginComponent {
   isLoading = signal(false);
   shakeActive = signal(false);
 
+  // Primer ingreso del administrador (o PIN restablecido): elige su propio PIN dos veces
+  mode = signal<'login' | 'setup' | 'confirm'>('login');
+  setupUser = signal<User | null>(null);
+  private firstPin = '';
+  prompt = computed(() => ({
+    login: 'Ingresa tu PIN de acceso',
+    setup: 'Crea tu PIN de 4 dígitos',
+    confirm: 'Escríbelo otra vez para confirmar',
+  }[this.mode()]));
+
   constructor(
     private authService: AuthService,
     private toastService: ToastService,
@@ -130,7 +144,21 @@ export class LoginComponent {
       const user = this.authService.user();
       if (user) {
         this.authService.redirectByRole(user);
+        return;
       }
+    }
+    this.checkPendingSetup();
+  }
+
+  private async checkPendingSetup(): Promise<void> {
+    try {
+      const pending = await this.authService.pendingPinSetup();
+      if (pending) {
+        this.setupUser.set(pending);
+        this.mode.set('setup');
+      }
+    } catch {
+      // Sin conexión: se queda el ingreso normal por PIN
     }
   }
 
@@ -171,7 +199,15 @@ export class LoginComponent {
 
     // Auto-submit cuando se ingresan 4 dígitos
     if (this.pin().length === 4) {
-      this.attemptLogin();
+      if (this.mode() === 'login') {
+        this.attemptLogin();
+      } else if (this.mode() === 'setup') {
+        this.firstPin = this.pin();
+        this.pin.set('');
+        this.mode.set('confirm');
+      } else {
+        this.finishSetup();
+      }
     }
   }
 
@@ -189,6 +225,36 @@ export class LoginComponent {
   private triggerShake(): void {
     this.shakeActive.set(true);
     setTimeout(() => this.shakeActive.set(false), 500);
+  }
+
+  private async finishSetup(): Promise<void> {
+    const user = this.setupUser();
+    if (!user) return;
+    if (this.pin() !== this.firstPin) {
+      this.error.set('Los PIN no coinciden. Empieza de nuevo.');
+      this.triggerShake();
+      this.pin.set('');
+      this.mode.set('setup');
+      return;
+    }
+    this.isLoading.set(true);
+    try {
+      const result = await this.authService.setOwnPin(user.id, this.pin());
+      if (result === 'ok') {
+        this.mode.set('login');
+        await this.attemptLogin();
+        return;
+      }
+      this.error.set(result === 'taken' ? 'Ese PIN ya lo usa otra persona del restaurante. Elige otro.' : 'El PIN debe tener 4 dígitos.');
+      this.triggerShake();
+      this.pin.set('');
+      this.mode.set('setup');
+    } catch {
+      this.error.set('Error de conexión. Intenta de nuevo.');
+      this.pin.set('');
+      this.mode.set('setup');
+    }
+    this.isLoading.set(false);
   }
 
   private async attemptLogin(): Promise<void> {

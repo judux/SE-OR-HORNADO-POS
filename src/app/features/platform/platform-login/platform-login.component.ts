@@ -1,66 +1,53 @@
 import { Component, inject, signal, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { TenantService } from '../../../core/tenant/tenant.service';
 import { PlatformService, PlatformError } from '../../../core/platform/platform.service';
+import { GoogleSignInComponent } from '../../../shared/components/google-sign-in/google-sign-in.component';
 
+/**
+ * /plataforma — acceso del dueño de la plataforma (con Google). Ninguna pantalla de los restaurantes
+ * enlaza aquí; aun así, la seguridad real son las reglas: solo la cuenta dueña puede administrar.
+ */
 @Component({
   selector: 'app-platform-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [GoogleSignInComponent],
   template: `
     <div class="min-h-[100dvh] w-full flex items-center justify-center bg-dark-900 p-4">
       <div class="w-full max-w-sm">
         <div class="text-center mb-6">
           <span class="material-symbols-rounded text-5xl text-amber-400">admin_panel_settings</span>
           <h1 class="text-white text-xl font-extrabold mt-2">Administración de la plataforma</h1>
-          <p class="text-dark-300 text-sm mt-1">Crea y administra los restaurantes que usan el sistema.</p>
         </div>
 
         <div class="bg-dark-800/90 rounded-3xl p-7 border border-dark-700/80 shadow-2xl">
-          @if (tenant.account().kind === 'device' || tenant.account().kind === 'unlinked') {
-            <p class="text-amber-300 text-sm text-center mb-4">
-              Hay otra cuenta abierta en este navegador ({{ tenant.account().email }}).
-              <button (click)="signOutOther()" class="underline font-bold">Cerrarla</button> para continuar.
-            </p>
+          @switch (view()) {
+            @case ('cargando') {
+              <p class="text-center text-dark-300 py-6">Un momento...</p>
+            }
+            @case ('entrar') {
+              <app-google-sign-in (signedIn)="check()" />
+            }
+            @case ('reclamar') {
+              <p class="text-dark-300 text-sm text-center">La plataforma todavía no tiene dueño.</p>
+              <p class="text-white text-sm text-center font-bold mt-1">{{ tenant.account().email }}</p>
+              <p class="text-dark-400 text-xs text-center mt-3">Esto se hace una sola vez: después nadie más podrá reclamarla.</p>
+              <button (click)="claim()" [disabled]="busy()" class="w-full mt-5 py-3.5 rounded-2xl bg-primary-500 hover:bg-primary-600 text-white font-bold disabled:opacity-50">
+                {{ busy() ? 'Un momento...' : 'Ser el dueño de la plataforma' }}
+              </button>
+            }
+            @case ('denegado') {
+              <p class="text-amber-300 text-sm text-center">La cuenta <strong>{{ tenant.account().email }}</strong> no administra la plataforma.</p>
+            }
           }
 
-          <div class="flex bg-dark-900 rounded-2xl p-1 mb-5 text-sm font-bold">
-            <button (click)="mode.set('login')" class="flex-1 py-2 rounded-xl" [class]="mode() === 'login' ? 'bg-dark-700 text-white' : 'text-dark-400'">Iniciar sesión</button>
-            <button (click)="mode.set('claim')" class="flex-1 py-2 rounded-xl" [class]="mode() === 'claim' ? 'bg-dark-700 text-white' : 'text-dark-400'">Primera vez</button>
-          </div>
-
-          <form (ngSubmit)="submit()" class="space-y-4">
-            @if (mode() === 'claim') {
-              <p class="text-dark-300 text-xs bg-dark-900 rounded-2xl p-3">
-                Crea la cuenta del <strong class="text-white">dueño de la plataforma</strong>. Esto solo se puede hacer una vez; después nadie más podrá reclamarla.
-              </p>
-              <div>
-                <label for="pl-nombre" class="block text-xs font-bold text-dark-300 mb-1.5">Tu nombre</label>
-                <input id="pl-nombre" name="nombre" [(ngModel)]="nombre" class="w-full px-4 py-3.5 rounded-2xl bg-dark-900 border border-dark-600 text-white outline-none focus:border-primary-500" required>
-              </div>
-            }
-            <div>
-              <label for="pl-email" class="block text-xs font-bold text-dark-300 mb-1.5">Correo</label>
-              <input id="pl-email" type="email" name="email" [(ngModel)]="email" autocomplete="username" class="w-full px-4 py-3.5 rounded-2xl bg-dark-900 border border-dark-600 text-white outline-none focus:border-primary-500" required>
-            </div>
-            <div>
-              <label for="pl-password" class="block text-xs font-bold text-dark-300 mb-1.5">Contraseña {{ mode() === 'claim' ? '(mínimo 8 caracteres)' : '' }}</label>
-              <input id="pl-password" type="password" name="password" [(ngModel)]="password" [autocomplete]="mode() === 'claim' ? 'new-password' : 'current-password'" class="w-full px-4 py-3.5 rounded-2xl bg-dark-900 border border-dark-600 text-white outline-none focus:border-primary-500" required>
-            </div>
-
-            @if (error()) {
-              <p class="text-red-400 text-sm font-bold text-center bg-red-500/15 border border-red-500/30 rounded-2xl py-2.5 px-3">{{ error() }}</p>
-            }
-
-            <button type="submit" [disabled]="isLoading()" class="w-full py-3.5 rounded-2xl bg-primary-500 hover:bg-primary-600 text-white font-bold disabled:opacity-50">
-              {{ isLoading() ? 'Un momento...' : (mode() === 'claim' ? 'Crear cuenta de dueño' : 'Entrar') }}
-            </button>
-          </form>
+          @if (error()) {
+            <p class="text-red-400 text-sm font-bold text-center mt-4">{{ error() }}</p>
+          }
+          @if (view() === 'reclamar' || view() === 'denegado') {
+            <button (click)="signOut()" class="w-full mt-4 py-2 text-dark-400 hover:text-dark-200 text-xs">Usar otra cuenta de Google</button>
+          }
         </div>
-
-        <a routerLink="/activar" class="block text-center text-dark-400 hover:text-dark-200 text-xs mt-6">← Volver a activar un equipo de restaurante</a>
       </div>
     </div>
   `
@@ -70,53 +57,53 @@ export class PlatformLoginComponent {
   private platform = inject(PlatformService);
   private router = inject(Router);
 
-  mode = signal<'login' | 'claim'>('login');
-  nombre = '';
-  email = '';
-  password = '';
+  view = signal<'cargando' | 'entrar' | 'reclamar' | 'denegado'>('cargando');
   error = signal('');
-  isLoading = signal(false);
+  busy = signal(false);
 
   constructor() {
-    // Si ya hay sesión de dueño, ir directo al panel
+    // Con sesión de dueño: directo al panel
     effect(() => {
       if (this.tenant.account().kind === 'platform') {
-        this.router.navigate(['/plataforma/panel']);
+        queueMicrotask(() => this.router.navigate(['/plataforma/panel']));
       }
     });
+    this.check();
   }
 
-  async signOutOther(): Promise<void> {
-    await this.tenant.signOut();
-  }
-
-  async submit(): Promise<void> {
+  async check(): Promise<void> {
     this.error.set('');
-    if (this.mode() === 'claim' && this.password.length < 8) {
-      this.error.set('La contraseña debe tener al menos 8 caracteres.');
+    const account = await this.tenant.whenResolved();
+    const user = this.tenant.currentUser();
+    if (account.kind === 'platform') return; // el effect redirige
+    if (!user || user.isAnonymous) {
+      if (user?.isAnonymous) await this.tenant.signOut(); // celular de personal: no sirve aquí
+      this.view.set('entrar');
       return;
     }
-    this.isLoading.set(true);
     try {
-      if (this.mode() === 'claim') {
-        await this.platform.claimPlatform(this.nombre, this.email, this.password);
-      } else {
-        const account = await this.tenant.signIn(this.email, this.password);
-        if (account.kind !== 'platform') {
-          await this.tenant.signOut();
-          this.error.set('Esa cuenta no es de administración de la plataforma.');
-        }
-      }
-      this.password = '';
-    } catch (e: any) {
-      const code = e?.code ?? '';
-      if (e instanceof PlatformError) this.error.set(e.message);
-      else if (code.includes('email-already-in-use')) this.error.set('Ese correo ya tiene una cuenta. Usa "Iniciar sesión".');
-      else if (code.includes('network')) this.error.set('Sin conexión. Revisa el internet.');
-      else if (code.includes('too-many-requests')) this.error.set('Demasiados intentos. Espera unos minutos.');
-      else this.error.set(this.mode() === 'claim' ? 'No se pudo crear la cuenta.' : 'Correo o contraseña incorrectos.');
-    } finally {
-      this.isLoading.set(false);
+      this.view.set((await this.platform.ownerExists()) ? 'denegado' : 'reclamar');
+    } catch {
+      this.error.set('Sin conexión. Revisa el internet.');
+      this.view.set('entrar');
     }
+  }
+
+  async claim(): Promise<void> {
+    this.busy.set(true);
+    this.error.set('');
+    try {
+      await this.platform.claimPlatform();
+    } catch (e: any) {
+      this.error.set(e instanceof PlatformError ? e.message : 'No se pudo completar. Revisa la conexión.');
+      this.view.set('denegado');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async signOut(): Promise<void> {
+    await this.tenant.signOut();
+    this.view.set('entrar');
   }
 }

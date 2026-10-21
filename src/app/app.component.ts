@@ -8,7 +8,7 @@ import { UpdateBannerComponent } from './shared/components/update-banner/update-
 import { TenantService } from './core/tenant/tenant.service';
 
 // Rutas que funcionan sin un restaurante activo
-const PUBLIC_PREFIXES = ['/activar', '/plataforma'];
+const PUBLIC_PREFIXES = ['/activar', '/plataforma', '/registro', '/unirse'];
 
 @Component({
   selector: 'app-root',
@@ -43,7 +43,8 @@ export class AppComponent {
       const url = window.location.pathname;
       const isPublic = PUBLIC_PREFIXES.some(p => url.startsWith(p));
       if (!activeRid && !isPublic && account.kind !== 'platform') {
-        this.router.navigate(['/activar']);
+        // Fuera del effect: Angular no permite escribir signals dentro de un effect
+        queueMicrotask(() => this.router.navigate(['/activar']));
       }
     });
   }

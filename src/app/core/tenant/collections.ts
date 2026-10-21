@@ -19,6 +19,7 @@ export const RESTAURANT_COLLECTIONS = [
     'expenses',       // gastos de caja chica
     'shifts',         // turnos cerrados (solo se crean)
     'config',         // configuración (p. ej. turno_actual)
+    'private',        // datos sensibles del restaurante (p. ej. código del enlace del personal)
 ] as const;
 
 export type RestaurantCollection = typeof RESTAURANT_COLLECTIONS[number];
@@ -29,6 +30,7 @@ export const PLATFORM_COLLECTIONS = {
     devices: 'devices',
     platformAdmins: 'platform_admins',
     platform: 'platform',
+    solicitudes: 'solicitudes',
 } as const;
 
 export function restaurantCol(firestore: Firestore, rid: string, name: RestaurantCollection): CollectionReference {

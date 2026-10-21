@@ -44,6 +44,10 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/restaurants/$(rid)).data.estado == 'activo';
     }
 
+    function isNotAnonymous() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
     function isNonNegativeNumber(value) {
       return (value is int || value is float) && value >= 0;
     }
@@ -69,9 +73,34 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Solicitudes de registro de restaurantes nuevos (cuenta de Google del futuro administrador).
+    // No dan ningún acceso: solo el dueño de la plataforma las aprueba o rechaza.
+    match /solicitudes/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isPlatformAdmin();
+      allow create: if isNotAnonymous()
+        && request.auth.uid == uid
+        && request.resource.data.estado == 'pendiente'
+        && request.resource.data.nombre_restaurante is string
+        && request.resource.data.nombre_restaurante.size() > 0
+        && request.resource.data.nombre_contacto is string;
+      allow update, delete: if isPlatformAdmin();
+    }
+
     match /devices/{uid} {
       allow read: if (signedIn() && request.auth.uid == uid) || isPlatformAdmin();
-      allow create, update, delete: if isPlatformAdmin();
+      // Vinculación con el enlace del restaurante: el equipo se vincula a sí mismo SOLO si presenta
+      // el código secreto vigente del restaurante y el restaurante está activo. Solo crear (no se cambia de restaurante).
+      allow create: if isPlatformAdmin() || (
+        signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['rid', 'token', 'tipo', 'creado_en'])
+        && request.resource.data.tipo == 'personal'
+        && request.resource.data.token is string
+        && request.resource.data.token.size() >= 20
+        && request.resource.data.token == get(/databases/$(database)/documents/restaurants/$(request.resource.data.rid)/private/acceso).data.token
+        && get(/databases/$(database)/documents/restaurants/$(request.resource.data.rid)).data.estado == 'activo'
+      );
+      allow update, delete: if isPlatformAdmin();
     }
 
     // ---------------- Restaurantes ----------------
@@ -98,6 +127,12 @@ service cloud.firestore {
       }
 
       match /config/{configId} {
+        allow read, write: if isDeviceOf(rid) || isPlatformAdmin();
+      }
+
+      // Código secreto del enlace del personal (private/acceso). Lo crea la plataforma al aprobar;
+      // el restaurante puede ver el enlace y generar uno nuevo.
+      match /private/{docId} {
         allow read, write: if isDeviceOf(rid) || isPlatformAdmin();
       }
 

@@ -37,7 +37,8 @@ Navegador (Angular 18, PWA)                      Firebase (plan Spark)
 3. **Las ventas (`order_history`) y los turnos (`shifts`) nunca se editan ni se borran.** Para corregir algo se crea un registro nuevo (por ejemplo, una anulación).
 4. **El dinero se escribe en transacciones o batches.** Cobrar, unir, dividir y guardar comandas son atómicos e idempotentes; una venta usa el **mismo id** que su orden.
 5. **La lógica de cálculo va en archivos puros** (`order.logic.ts`) con pruebas unitarias. No se calculan totales dentro de los componentes.
-6. **Antes de desplegar: `npm run verify`.** O directamente `npm run deploy`, que verifica primero y solo despliega si todo pasa.
+6. **Dentro de un `effect()` nunca se escriben signals ni se navega directamente.** Angular 18 lo bloquea (error NG0600) y la acción se pierde sin aviso visible. Las acciones van en `queueMicrotask(() => ...)` o en `untracked(...)`. Este error ya causó dos fallas: el aviso de comandas y el paso automático al PIN.
+7. **Antes de desplegar: `npm run verify`.** O directamente `npm run deploy`, que verifica primero y solo despliega si todo pasa.
 
 ## 4. Receta: agregar una función nueva (ejemplo: "recetas")
 

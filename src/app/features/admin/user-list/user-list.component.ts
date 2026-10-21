@@ -4,14 +4,17 @@ import { FormsModule } from '@angular/forms';
 import { UserService } from '../../../core/services/user.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { User } from '../../../shared/interfaces';
+import { StaffLinkComponent } from '../staff-link/staff-link.component';
 
 
 @Component({
   selector: 'app-user-list',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, StaffLinkComponent],
   template: `
     <div>
+      <app-staff-link />
+
       <!-- Header -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>

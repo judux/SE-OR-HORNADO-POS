@@ -18,6 +18,26 @@ async function account(email, password = 'clave-de-prueba-123') {
     return { token: j.idToken, uid: j.localId };
 }
 
+// Cuenta "de Google" en el emulador (token falso que el emulador acepta)
+async function googleAccount(email) {
+    const postBody = `id_token=${encodeURIComponent(JSON.stringify({ sub: email, email, email_verified: true }))}&providerId=google.com`;
+    const r = await fetch(`${AUTH}/accounts:signInWithIdp?key=demo-api-key`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postBody, requestUri: 'http://localhost', returnSecureToken: true })
+    });
+    const j = await r.json();
+    return { token: j.idToken, uid: j.localId };
+}
+
+// Cuenta anónima (celular del personal que entra con el enlace del restaurante)
+async function anonAccount() {
+    const r = await fetch(`${AUTH}/accounts:signUp?key=demo-api-key`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnSecureToken: true })
+    });
+    const j = await r.json();
+    return { token: j.idToken, uid: j.localId };
+}
+
 const S = v => ({ stringValue: v }), I = v => ({ integerValue: String(v) });
 const fields = obj => Object.fromEntries(Object.entries(obj).map(([k, v]) =>
     [k, typeof v === 'number' ? I(v) : typeof v === 'boolean' ? { booleanValue: v } : Array.isArray(v) ? { arrayValue: { values: v } } : S(v)]));
@@ -56,6 +76,8 @@ const stranger = await account(`extrano-${RUN}@prueba.app`);
 const devA = await account(`a-${RUN}@prueba.app`);
 const devB = await account(`b-${RUN}@prueba.app`);
 const A = `rest-a-${RUN}`, B = `rest-b-${RUN}`;
+const TOKEN_A = `codigo-secreto-a-${RUN}-xxxxxxxx`;
+const TOKEN_B = `codigo-secreto-b-${RUN}-yyyyyyyy`;
 const sale = { estado: 'pagada', total: 1000, metodo_pago: 'efectivo', items: [{ mapValue: { fields: { nombre_producto: S('X') } } }] };
 
 console.log('\n— Preparación (todo debe permitirse) —');
@@ -67,12 +89,14 @@ check('Dueño crea el restaurante A y vincula su cuenta', await commit(owner.tok
     [`restaurants/${A}`, { nombre: 'A', estado: 'activo' }],
     [`devices/${devA.uid}`, { rid: A }],
     [`restaurants/${A}/users/admin`, { nombre: 'Admin A', rol: 'admin', pin_acceso: '1111', activo: true }],
-    [`restaurants/${A}/products/p1`, { nombre: 'Hornado', precio: 15000 }]
+    [`restaurants/${A}/products/p1`, { nombre: 'Hornado', precio: 15000 }],
+    [`restaurants/${A}/private/acceso`, { token: TOKEN_A }]
 ]), true);
 check('Dueño crea el restaurante B y vincula su cuenta', await commit(owner.token, [
     [`restaurants/${B}`, { nombre: 'B', estado: 'activo' }],
     [`devices/${devB.uid}`, { rid: B }],
-    [`restaurants/${B}/products/p1`, { nombre: 'Bandeja', precio: 20000 }]
+    [`restaurants/${B}/products/p1`, { nombre: 'Bandeja', precio: 20000 }],
+    [`restaurants/${B}/private/acceso`, { token: TOKEN_B }]
 ]), true);
 check('Equipo B registra una venta propia', await put(`restaurants/${B}/order_history/v1`, devB.token, sale), true);
 
@@ -118,6 +142,40 @@ check('Dueño lista los restaurantes', await get('restaurants', owner.token), tr
 check('Dueño agrega un administrador a A', await put(`restaurants/${A}/users/admin2`, owner.token, { nombre: 'Admin 2', rol: 'admin', pin_acceso: '2222', activo: true }), true);
 check('Dueño lee las ventas de A', await get(`restaurants/${A}/order_history/v1`, owner.token), false);
 check('Dueño lee las órdenes de A', await get(`restaurants/${A}/orders`, owner.token), false);
+
+console.log('\n— Solicitudes de registro (cuenta de Google) —');
+const solicitante = await googleAccount(`nuevo-${RUN}@gmail.com`);
+const otroGoogle = await googleAccount(`otro-${RUN}@gmail.com`);
+const anonimo = await anonAccount();
+const solicitud = { estado: 'pendiente', nombre_restaurante: 'Asadero Nuevo', nombre_contacto: 'Pedro', email: 'x' };
+check('Cuenta Google crea su solicitud', await put(`solicitudes/${solicitante.uid}`, solicitante.token, solicitud), true);
+check('Cuenta Google crea una solicitud a nombre de otro', await put(`solicitudes/${otroGoogle.uid}x`, otroGoogle.token, solicitud), false);
+check('Cuenta anónima crea una solicitud', await put(`solicitudes/${anonimo.uid}`, anonimo.token, solicitud), false);
+check('Solicitud creada ya aprobada', await put(`solicitudes/${otroGoogle.uid}`, otroGoogle.token, { ...solicitud, estado: 'aprobada' }), false);
+check('El solicitante lee su solicitud', await get(`solicitudes/${solicitante.uid}`, solicitante.token), true);
+check('Otra cuenta lee una solicitud ajena', await get(`solicitudes/${solicitante.uid}`, otroGoogle.token), false);
+check('El solicitante se aprueba a sí mismo', await put(`solicitudes/${solicitante.uid}`, solicitante.token, { ...solicitud, estado: 'aprobada' }), false);
+check('El solicitante se vincula solo a un restaurante (sin código)', await put(`devices/${solicitante.uid}`, solicitante.token, { rid: A }), false);
+check('Dueño lista las solicitudes', await get('solicitudes', owner.token), true);
+check('Dueño aprueba la solicitud', await put(`solicitudes/${solicitante.uid}`, owner.token, { ...solicitud, estado: 'aprobada', rid: A }), true);
+
+console.log('\n— Enlace del personal (código secreto del restaurante) —');
+const personal = await anonAccount();
+const intruso = await anonAccount();
+const vincular = (cuenta, rid, token) => put(`devices/${cuenta.uid}`, cuenta.token, { rid, token, tipo: 'personal' });
+check('Celular sin vincular lee el menú de A', await get(`restaurants/${A}/products/p1`, personal.token), false);
+check('Vincularse a A con un código incorrecto', await vincular(intruso, A, 'codigo-falso-0000000000000'), false);
+check('Vincularse a A con el código de B', await vincular(intruso, A, TOKEN_B), false);
+check('Vincularse a A con el código correcto', await vincular(personal, A, TOKEN_A), true);
+check('Celular vinculado lee el menú de A', await get(`restaurants/${A}/products/p1`, personal.token), true);
+check('Celular vinculado a A lee el menú de B', await get(`restaurants/${B}/products/p1`, personal.token), false);
+check('Celular vinculado a A se cambia a B (con código de B)', await vincular(personal, B, TOKEN_B), false);
+check('Celular vinculado lee el código del enlace de B', await get(`restaurants/${B}/private/acceso`, personal.token), false);
+check('Vincularse con un tipo distinto (intento de escalar)', await put(`devices/${intruso.uid}`, intruso.token, { rid: A, token: TOKEN_A, tipo: 'admin' }), false);
+check('Dueño suspende A', await put(`restaurants/${A}`, owner.token, { nombre: 'A', estado: 'suspendido' }), true);
+const tarde = await anonAccount();
+check('Vincularse a A (suspendido) con el código correcto', await vincular(tarde, A, TOKEN_A), false);
+check('Dueño reactiva A', await put(`restaurants/${A}`, owner.token, { nombre: 'A', estado: 'activo' }), true);
 
 console.log('\n— Cada colección de restaurante registrada en collections.ts está aislada —');
 // Si se agrega una colección a RESTAURANT_COLLECTIONS sin su regla (o con una regla que deja ver a

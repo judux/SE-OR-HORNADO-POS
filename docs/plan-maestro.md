@@ -35,6 +35,26 @@
   - ~~Las fechas salen en inglés~~: corregido con la configuración regional `es-CO` (commit `c4b5ced`).
   - El texto escrito en las notas se ve muy tenue.
 
+## Fase 4b: ingreso con Google y enlaces (en curso, definida el 21 de octubre de 2026)
+
+Reemplaza las cuentas con correo y contraseña por un flujo pensado para el negocio real. **La base no cambia:** se mantienen la separación por restaurante, las reglas y los servicios.
+
+| Paso | Quién | Cómo |
+|---|---|---|
+| 1 | Dueño de la plataforma | Entra a `/plataforma` con **Google**. Ningún botón ni enlace lleva ahí. La primera vez la reclama, una sola vez |
+| 2 | Dueño de un restaurante nuevo | Recibe el enlace `/registro` → entra con **Google** → llena una solicitud con el nombre del restaurante y el suyo → queda "en revisión" |
+| 3 | Dueño de la plataforma | Ve las **solicitudes** → aprueba (nombre del restaurante y del admin; opcionalmente copia el menú) o rechaza |
+| 4 | Admin del restaurante | Vuelve a entrar con Google. La primera vez **elige su propio PIN**; después solo se le pide el PIN |
+| 5 | Admin del restaurante | En su panel tiene el **enlace único del restaurante** (copiar o compartir; puede generar uno nuevo si se filtra) |
+| 6 | Meseros y cajeros | Abren ese enlace → su celular queda vinculado a **ese** restaurante, sin cuenta de Google → entran con su PIN y su rol |
+
+**Seguridad:**
+- El enlace del personal lleva un código secreto que las reglas comparan con el que guarda el restaurante. Generar uno nuevo invalida el anterior para equipos nuevos.
+- Una solicitud no da ningún acceso hasta que el dueño de la plataforma la aprueba.
+- Un equipo ya vinculado a un restaurante no puede cambiarse a otro por su cuenta.
+
+**Requisito:** en Firebase Authentication deben estar habilitados los proveedores **Google** y **Anónimo**.
+
 ## Estado de la Fase 4: plataforma multi-restaurante (21 de octubre de 2026)
 
 Se adelantó por decisión del dueño, sin fecha límite y dentro del plan gratuito.
