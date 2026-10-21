@@ -50,3 +50,20 @@ export function restaurantManifest(input: RestaurantManifestInput): Record<strin
         icons: input.icons.map(i => ({ src: i.src, sizes: `${i.size}x${i.size}`, type: 'image/png', purpose: 'any maskable' }))
     };
 }
+
+/** App del dueño de la plataforma: abre directo en su panel y no se confunde con la de un restaurante. */
+export function platformManifest(origin: string): Record<string, unknown> {
+    return {
+        id: '/?app=plataforma',
+        name: 'KINO-POS Plataforma',
+        short_name: 'Plataforma',
+        description: 'Administración de restaurantes de KINO-POS',
+        start_url: `${origin}/plataforma`,
+        scope: `${origin}/`,
+        display: 'standalone',
+        background_color: '#171717',
+        theme_color: '#171717',
+        lang: 'es',
+        icons: [192, 512].map(size => ({ src: `${origin}/icons/kino-${size}.png`, sizes: `${size}x${size}`, type: 'image/png', purpose: 'any maskable' }))
+    };
+}

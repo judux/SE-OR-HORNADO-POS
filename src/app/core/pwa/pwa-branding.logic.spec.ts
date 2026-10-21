@@ -1,4 +1,4 @@
-import { initials, brandColor, shortName, restaurantManifest } from './pwa-branding.logic';
+import { initials, brandColor, shortName, restaurantManifest, platformManifest } from './pwa-branding.logic';
 
 describe('marca de la PWA por restaurante', () => {
     it('saca iniciales del nombre', () => {
@@ -32,5 +32,12 @@ describe('marca de la PWA por restaurante', () => {
         const m = restaurantManifest({ rid: 'r1', nombre: 'X', origin: 'https://kino-pos.web.app', icons: [], color: '#000000', startUrl: 'https://kino-pos.web.app/unirse/r1/tok' });
         expect(m['start_url']).toBe('https://kino-pos.web.app/unirse/r1/tok');
         expect(m['scope']).toBe('https://kino-pos.web.app/');
+    });
+
+    it('la app de la plataforma abre en el panel y tiene id propio', () => {
+        const m = platformManifest('https://kino-pos.web.app');
+        expect(m['start_url']).toBe('https://kino-pos.web.app/plataforma');
+        expect(m['id']).toBe('/?app=plataforma');
+        expect((m['icons'] as any[])[0].src).toBe('https://kino-pos.web.app/icons/kino-192.png');
     });
 });

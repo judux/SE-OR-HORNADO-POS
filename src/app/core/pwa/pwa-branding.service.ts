@@ -1,12 +1,13 @@
 import { Injectable, effect, inject } from '@angular/core';
 import { TenantService } from '../tenant/tenant.service';
 import { AccessService } from '../services/access.service';
-import { brandColor, initials, restaurantManifest } from './pwa-branding.logic';
+import { brandColor, initials, platformManifest, restaurantManifest } from './pwa-branding.logic';
 
 /**
  * Cada restaurante tiene "su propia app": cuando este equipo pertenece a un restaurante, el manifest,
  * el ícono y el nombre de la PWA se cambian a los del restaurante ANTES de instalarla.
- * Sin restaurante (plataforma, registro, bienvenida) se usa la marca KINO-POS (public/manifest.webmanifest).
+ * El dueño de la plataforma instala "KINO-POS Plataforma", que abre en su panel.
+ * Sin cuenta (registro, bienvenida) se usa la marca KINO-POS (public/manifest.webmanifest).
  *
  * Todo se hace en el navegador (plan gratuito): el ícono se dibuja con las iniciales del restaurante.
  *
@@ -35,6 +36,11 @@ export class PwaBrandingService {
                     this.applyRestaurant(restaurant.id, restaurant.nombre, staffLink);
                     this.appliedFor = key;
                 }
+            } else if (kind === 'platform') {
+                if (this.appliedFor !== 'plataforma') {
+                    this.applyPlatform();
+                    this.appliedFor = 'plataforma';
+                }
             } else if (kind !== 'loading' && this.appliedFor !== null) {
                 this.restoreDefaults();
                 this.appliedFor = null;
@@ -53,6 +59,14 @@ export class PwaBrandingService {
         this.link('apple-touch-icon').href = drawIcon(letters, color, 180);
         this.meta('apple-mobile-web-app-title').content = manifest['short_name'] as string;
         this.meta('theme-color').content = color;
+    }
+
+    private applyPlatform(): void {
+        const manifest = platformManifest(window.location.origin);
+        this.link('manifest').href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+        this.link('apple-touch-icon').href = this.defaults.appleIcon;
+        this.meta('apple-mobile-web-app-title').content = manifest['short_name'] as string;
+        this.meta('theme-color').content = this.defaults.themeColor;
     }
 
     private restoreDefaults(): void {
