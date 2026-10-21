@@ -30,6 +30,7 @@ Blaze cobra por uso, pero mantiene las mismas cuotas gratis. Hay que poner alert
 - **Node 22 LTS** en lugar de Node 25.
 - **Texto de notas con poco contraste** en la ventana de producto del mesero.
 - **Proyecto de pruebas separado** (`-dev`) en Firebase, además del emulador local.
+- **Aviso de 'versión nueva' de la PWA:** en la prueba del 21 de octubre el Service Worker descargó la versión nueva sin mostrar el aviso. Recargar o reabrir la app sí la toma. Hay que revisarlo en un celular real; mientras tanto, después de cada despliegue se cierra y se vuelve a abrir la app.
 - **Verificación del equipo más rápida al abrir:** hoy tarda 2–4 s porque espera Firebase Auth y dos lecturas (`platform_admins` y `devices`). Se puede guardar el último resultado en el dispositivo y verificarlo en segundo plano.
 - **Logo propio por restaurante:** hoy se muestra el nombre en texto. Subir imágenes requiere Cloud Storage, que desde febrero de 2026 exige Blaze, así que va en la sección A.
 - **Nombre y marca del producto:** la PWA se llama "Sistema POS Restaurantes" de forma provisional.
