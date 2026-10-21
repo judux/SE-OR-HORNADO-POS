@@ -74,7 +74,7 @@ import { GoogleSignInComponent } from '../../../shared/components/google-sign-in
             @default {
               <div class="text-center mb-6">
                 <span class="material-symbols-rounded text-4xl text-amber-400">storefront</span>
-                <h1 class="text-white text-lg font-extrabold mt-2">Bienvenido</h1>
+                <h1 class="text-white text-lg font-extrabold mt-2">Bienvenido a KINO-POS</h1>
                 <p class="text-dark-300 text-sm mt-1">Este equipo todavía no está vinculado a un restaurante.</p>
               </div>
 

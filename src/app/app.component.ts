@@ -6,6 +6,7 @@ import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confi
 import { ConnectionBannerComponent } from './shared/components/connection-banner/connection-banner.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
 import { TenantService } from './core/tenant/tenant.service';
+import { PwaBrandingService } from './core/pwa/pwa-branding.service';
 
 // Rutas que funcionan sin un restaurante activo
 const PUBLIC_PREFIXES = ['/activar', '/plataforma', '/registro', '/unirse'];
@@ -27,6 +28,8 @@ export class AppComponent {
   private tenant = inject(TenantService);
   private router = inject(Router);
   private title = inject(Title);
+  // Se crea aquí para que el nombre e ícono de la app sigan al restaurante de este equipo
+  private pwaBranding = inject(PwaBrandingService);
 
   constructor() {
     effect(() => {
@@ -34,7 +37,7 @@ export class AppComponent {
       const restaurant = this.tenant.restaurant();
       const activeRid = this.tenant.activeRid();
 
-      this.title.setTitle(restaurant?.nombre ? `${restaurant.nombre} · POS` : 'Sistema POS');
+      this.title.setTitle(restaurant?.nombre ? `${restaurant.nombre} · KINO-POS` : 'KINO-POS');
 
       // Si el restaurante se suspende o el equipo pierde su sesión mientras se usa la app,
       // salir de inmediato a la pantalla que lo explica (los datos ya no cargan por las reglas).

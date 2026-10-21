@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "senor-hornado-pos-8412"
-  }
+  },
+  "targets": {
+    "senor-hornado-pos-8412": {
+      "hosting": {
+        "app": [
+          "kino-pos"
+        ],
+        "legacy": [
+          "senor-hornado-pos-8412"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

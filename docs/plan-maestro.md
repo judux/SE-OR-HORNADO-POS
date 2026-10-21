@@ -35,6 +35,13 @@
   - ~~Las fechas salen en inglés~~: corregido con la configuración regional `es-CO` (commit `c4b5ced`).
   - El texto escrito en las notas se ve muy tenue.
 
+## Fase 4c: marca KINO-POS y una app por restaurante (21 de octubre de 2026)
+
+- **Nombre del producto:** KINO-POS. La app vive en `https://kino-pos.web.app` (registro: `https://kino-pos.web.app/registro`).
+- **Dirección anterior:** `https://senor-hornado-pos-8412.web.app` redirige sola a la nueva, conservando la ruta (`/registro`, `/plataforma`, enlaces del personal). También desinstala el Service Worker viejo.
+- **Una PWA por restaurante:** cuando un equipo está vinculado a un restaurante, la app cambia su manifest antes de instalarse: nombre del restaurante, ícono con sus iniciales y un color propio, y un `id` distinto por restaurante. Así, en el celular aparece como "Señor Hornado" y no como KINO-POS. Sin restaurante (registro, plataforma, bienvenida) se instala como KINO-POS. Código: `src/app/core/pwa/`.
+- **Límite:** el ícono es de iniciales; un logo subido requiere Cloud Storage (Blaze). La instalación hay que comprobarla en celulares reales (Android e iPhone).
+
 ## Fase 4b: ingreso con Google y enlaces (en curso, definida el 21 de octubre de 2026)
 
 Reemplaza las cuentas con correo y contraseña por un flujo pensado para el negocio real. **La base no cambia:** se mantienen la separación por restaurante, las reglas y los servicios.

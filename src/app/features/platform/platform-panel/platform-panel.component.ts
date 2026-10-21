@@ -20,7 +20,7 @@ import { Restaurant, Solicitud } from '../../../shared/interfaces';
         <div class="flex items-center gap-3 min-w-0">
           <span class="material-symbols-rounded text-amber-400">admin_panel_settings</span>
           <div class="min-w-0">
-            <h1 class="font-extrabold leading-tight">Plataforma</h1>
+            <h1 class="font-extrabold leading-tight">KINO-POS · Plataforma</h1>
             <p class="text-xs text-dark-300 truncate">{{ tenant.account().email }}</p>
           </div>
         </div>

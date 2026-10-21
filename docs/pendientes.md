@@ -37,7 +37,8 @@ Blaze cobra por uso, pero mantiene las mismas cuotas gratis. Hay que poner alert
 - **Celulares anónimos que nunca se usaron:** quedan como cuentas sin uso en Authentication. Limpiarlas requiere Admin SDK (sección A).
 - **Verificación del equipo más rápida al abrir:** hoy tarda 2–4 s porque espera Firebase Auth y dos lecturas (`platform_admins` y `devices`). Se puede guardar el último resultado en el dispositivo y verificarlo en segundo plano.
 - **Logo propio por restaurante:** hoy se muestra el nombre en texto. Subir imágenes requiere Cloud Storage, que desde febrero de 2026 exige Blaze, así que va en la sección A.
-- **Nombre y marca del producto:** la PWA se llama "Sistema POS Restaurantes" de forma provisional.
+- **Dominio propio** (por ejemplo `kinopos.com`): hoy la app está en `kino-pos.web.app`, gratis. Un dominio cuesta la compra anual y se conecta en Hosting sin pagar Blaze.
+- **Nombre en la ventana de Google:** al ingresar con Google aparece `senor-hornado-pos-8412.firebaseapp.com`. Para que diga KINO-POS hay que cambiar el nombre público del proyecto en la consola (Configuración del proyecto) y, para el dominio, usar uno propio.
 - **Cuentas antiguas de correo (`equipos@senorhornado.app` y las que se hayan creado con el flujo de correo y contraseña):** quedó sin uso, porque no pertenece a ningún restaurante y no tiene acceso. Se puede borrar desde la consola de Authentication cuando quieras.
 - **Más de un administrador de plataforma** (por ejemplo, un socio o soporte): hoy solo existe el dueño.
 - **Editar el nombre de un restaurante y cambiar la contraseña de su cuenta** desde el panel de plataforma. Hoy solo se puede crear, suspender, reactivar y agregar administradores.
@@ -53,3 +54,4 @@ Blaze cobra por uso, pero mantiene las mismas cuotas gratis. Hay que poner alert
 
 - **21 de octubre de 2026:** se construye la plataforma multi-restaurante dentro del plan gratuito (Spark). Las reglas usan `get()` sobre `devices/{uid}`, aceptando 1–2 lecturas extra por operación, porque los *custom claims* requieren Blaze.
 - **21 de octubre de 2026:** el dueño de la plataforma **no** puede leer ventas, órdenes ni gastos de los restaurantes, por privacidad. Solo administra restaurantes, cuentas y el primer admin.
+- **21 de octubre de 2026:** el producto se llama **KINO-POS** y vive en `kino-pos.web.app`. La dirección anterior queda solo como redirección. Cada restaurante instala "su" app con nombre e ícono propios, generados en el navegador (sin Storage ni costo).

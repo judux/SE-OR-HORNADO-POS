@@ -7,7 +7,7 @@
 
 | Quién | Dónde | Cómo |
 |---|---|---|
-| **Tú** (dueño de la plataforma) | `https://senor-hornado-pos-8412.web.app/plataforma` (ningún botón lleva ahí) | Con tu cuenta de Google |
+| **Tú** (dueño de la plataforma) | `https://kino-pos.web.app/plataforma` (ningún botón lleva ahí) | Con tu cuenta de Google |
 | **Dueño o admin de un restaurante** | El enlace de registro que le envías (`/registro`) y luego la dirección normal de la app | Con su cuenta de Google. La primera vez crea su PIN; después solo se le pide el PIN |
 | **Meseros y cajeros** | El enlace único de su restaurante, que les comparte el admin | Sin cuenta de Google: abren el enlace y entran con el PIN que el admin les creó |
 

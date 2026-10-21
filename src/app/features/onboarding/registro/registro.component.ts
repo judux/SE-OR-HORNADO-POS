@@ -19,8 +19,9 @@ import { Solicitud } from '../../../shared/interfaces';
       <div class="w-full max-w-sm">
         <div class="text-center mb-6">
           <span class="material-symbols-rounded text-5xl text-amber-400">storefront</span>
-          <h1 class="text-white text-xl font-extrabold mt-2">Registra tu restaurante</h1>
-          <p class="text-dark-300 text-sm mt-1">Sistema de pedidos y caja para tu negocio.</p>
+          <h1 class="text-white text-2xl font-black mt-2 tracking-tight">KINO-POS</h1>
+          <p class="text-white font-bold mt-1">Registra tu restaurante</p>
+          <p class="text-dark-300 text-sm mt-1">Pedidos, caja y administración para tu negocio.</p>
         </div>
 
         <div class="bg-dark-800/90 rounded-3xl p-7 border border-dark-700/80 shadow-2xl">

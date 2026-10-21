@@ -17,7 +17,8 @@ import { GoogleSignInComponent } from '../../../shared/components/google-sign-in
       <div class="w-full max-w-sm">
         <div class="text-center mb-6">
           <span class="material-symbols-rounded text-5xl text-amber-400">admin_panel_settings</span>
-          <h1 class="text-white text-xl font-extrabold mt-2">Administración de la plataforma</h1>
+          <h1 class="text-white text-2xl font-black mt-2 tracking-tight">KINO-POS</h1>
+          <p class="text-dark-300 text-sm">Administración de la plataforma</p>
         </div>
 
         <div class="bg-dark-800/90 rounded-3xl p-7 border border-dark-700/80 shadow-2xl">
