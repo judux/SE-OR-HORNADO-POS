@@ -51,7 +51,6 @@ export class OrderService implements OnDestroy {
                     fecha_creacion: o.fecha_creacion?.toDate ? o.fecha_creacion.toDate() : new Date(o.fecha_creacion),
                     fecha_cierre: o.fecha_cierre?.toDate ? o.fecha_cierre.toDate() : (o.fecha_cierre ? new Date(o.fecha_cierre) : undefined)
                 })) as Order[];
-                console.log('Órdenes activas recibidas desde Firestore:', orders);
                 this.activeOrders.set(orders);
             }
         );

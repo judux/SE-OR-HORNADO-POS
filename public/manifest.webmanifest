@@ -1,8 +1,8 @@
 {
-  "name": "restaurante-pos",
-  "short_name": "restaurante-pos",
-  "theme_color": "#1976d2",
-  "background_color": "#fafafa",
+  "name": "Señor Hornado POS",
+  "short_name": "Señor Hornado",
+  "theme_color": "#171717",
+  "background_color": "#171717",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
