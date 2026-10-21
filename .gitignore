@@ -43,3 +43,8 @@ Thumbs.db
 
 # Python virtualenv
 .venv/
+
+# Logs de Firebase emulators
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

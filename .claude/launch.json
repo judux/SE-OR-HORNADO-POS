@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "emuladores",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "emulators"],
+      "port": 4000
+    },
+    {
+      "name": "app-emulador",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:emu"],
+      "port": 4200
+    }
+  ]
+}

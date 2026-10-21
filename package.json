@@ -6,7 +6,10 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "emulators": "firebase emulators:start --project demo-senor-hornado",
+    "seed:emu": "node scripts/seed-emulator.mjs",
+    "start:emu": "ng serve --configuration emulator"
   },
   "private": true,
   "dependencies": {
