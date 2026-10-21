@@ -60,6 +60,7 @@ export class GoogleSignInComponent {
       else if (code.includes('popup-blocked')) this.error.set('El navegador bloqueó la ventana de Google. Permite las ventanas emergentes e intenta de nuevo.');
       else if (code.includes('network')) this.error.set('Sin conexión. Revisa el internet.');
       else if (code.includes('operation-not-allowed')) this.error.set('El ingreso con Google no está habilitado todavía.');
+      else if (code.includes('unauthorized-domain')) this.error.set(`Esta dirección (${window.location.hostname}) no está autorizada para entrar con Google. Avisa al soporte de KINO-POS.`);
       else this.error.set('No se pudo entrar con Google. Intenta de nuevo.');
     } finally {
       this.loading.set(false);
