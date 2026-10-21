@@ -1,4 +1,5 @@
-import { Component, signal, HostListener } from '@angular/core';
+import { Component, signal, HostListener, inject } from '@angular/core';
+import { TenantService } from '../../../core/tenant/tenant.service';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
@@ -18,7 +19,7 @@ import { ToastService } from '../../../shared/components/toast/toast.service';
       <div class="w-full max-w-sm relative z-10">
         <!-- Logo y Título -->
         <div class="text-center mb-8">
-          <img src="logo.png" alt="Señor Hornado" class="h-40 mx-auto object-contain drop-shadow-sm mb-4 invert">
+          <h1 class="text-white text-3xl sm:text-4xl font-black tracking-tight mb-2">{{ tenant.restaurant()?.nombre }}</h1>
         </div>
 
         <!-- Card del PIN — Dark Glass High Contrast -->
@@ -114,6 +115,7 @@ import { ToastService } from '../../../shared/components/toast/toast.service';
   `,
 })
 export class LoginComponent {
+  public tenant = inject(TenantService);
   pin = signal('');
   error = signal('');
   welcomeMessage = signal('');

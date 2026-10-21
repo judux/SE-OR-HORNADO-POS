@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { TenantService } from '../../../core/tenant/tenant.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ThemeService } from '../../../core/services/theme.service';
 import { CashierDashboardComponent } from '../cashier-dashboard/cashier-dashboard.component';
@@ -12,7 +13,7 @@ import { CashierDashboardComponent } from '../cashier-dashboard/cashier-dashboar
       <!-- Header Apple Bar -->
       <header class="h-[72px] bg-dark-800/90 dark:bg-dark-900/90 backdrop-blur-xl border-b border-dark-700/50 text-white px-6 flex items-center justify-between shadow-lg sticky top-0 z-50 shrink-0">
         <div class="flex items-center gap-4">
-          <img src="logo.png" alt="Señor Hornado" class="h-9 object-contain invert drop-shadow-sm">
+          <span class="text-white font-extrabold text-base sm:text-lg tracking-tight truncate max-w-[45vw]">{{ tenant.restaurant()?.nombre }}</span>
           <div class="border-l border-dark-700 pl-4 hidden sm:block">
             <h1 class="text-base font-extrabold leading-none mb-0.5 tracking-tight">Módulo de Caja</h1>
             <p class="text-dark-300 text-xs font-medium flex items-center gap-1.5">
@@ -50,6 +51,7 @@ import { CashierDashboardComponent } from '../cashier-dashboard/cashier-dashboar
   `,
 })
 export class CashierLayoutComponent {
+  public tenant = inject(TenantService);
   public authService = inject(AuthService);
   public themeService = inject(ThemeService);
 }

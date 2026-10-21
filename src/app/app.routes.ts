@@ -3,12 +3,22 @@ import { LoginComponent } from './features/auth/login/login.component';
 import { authGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
 import { deviceGuard } from './core/guards/device.guard';
+import { platformGuard } from './core/guards/platform.guard';
 
 export const routes: Routes = [
     { path: '', redirectTo: '/login', pathMatch: 'full' },
     {
         path: 'activar',
         loadComponent: () => import('./features/auth/device-setup/device-setup.component').then(m => m.DeviceSetupComponent)
+    },
+    {
+        path: 'plataforma',
+        loadComponent: () => import('./features/platform/platform-login/platform-login.component').then(m => m.PlatformLoginComponent)
+    },
+    {
+        path: 'plataforma/panel',
+        loadComponent: () => import('./features/platform/platform-panel/platform-panel.component').then(m => m.PlatformPanelComponent),
+        canActivate: [platformGuard]
     },
     { path: 'login', component: LoginComponent, canActivate: [deviceGuard] },
     {

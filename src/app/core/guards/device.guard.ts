@@ -1,17 +1,22 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { DeviceService } from '../auth/device.service';
+import { TenantService } from '../tenant/tenant.service';
 
 /**
- * Guard que exige que el equipo esté activado con la cuenta de equipos.
+ * Exige que este equipo esté activado con la cuenta de un restaurante ACTIVO.
  * Sin esto, Firestore rechaza todas las lecturas (ni siquiera se puede validar un PIN).
  */
 export const deviceGuard: CanActivateFn = async () => {
-    const deviceService = inject(DeviceService);
+    const tenant = inject(TenantService);
     const router = inject(Router);
 
-    if (await deviceService.isActivated()) {
+    const account = await tenant.whenResolved();
+    if (account.kind === 'device' && tenant.activeRid()) {
         return true;
     }
+    if (account.kind === 'platform') {
+        return router.createUrlTree(['/plataforma/panel']);
+    }
+    // Sin sesión, cuenta sin restaurante o restaurante suspendido: la pantalla de activación lo explica
     return router.createUrlTree(['/activar']);
 };

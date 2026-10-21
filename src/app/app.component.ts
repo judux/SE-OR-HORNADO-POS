@@ -1,9 +1,14 @@
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, effect, inject } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 import { ToastContainerComponent } from './shared/components/toast/toast-container.component';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
 import { ConnectionBannerComponent } from './shared/components/connection-banner/connection-banner.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
+import { TenantService } from './core/tenant/tenant.service';
+
+// Rutas que funcionan sin un restaurante activo
+const PUBLIC_PREFIXES = ['/activar', '/plataforma'];
 
 @Component({
   selector: 'app-root',
@@ -19,5 +24,26 @@ import { UpdateBannerComponent } from './shared/components/update-banner/update-
   styleUrl: './app.component.css'
 })
 export class AppComponent {
-  title = 'restaurante-pos';
+  private tenant = inject(TenantService);
+  private router = inject(Router);
+  private title = inject(Title);
+
+  constructor() {
+    effect(() => {
+      const account = this.tenant.account();
+      const restaurant = this.tenant.restaurant();
+      const activeRid = this.tenant.activeRid();
+
+      this.title.setTitle(restaurant?.nombre ? `${restaurant.nombre} · POS` : 'Sistema POS');
+
+      // Si el restaurante se suspende o el equipo pierde su sesión mientras se usa la app,
+      // salir de inmediato a la pantalla que lo explica (los datos ya no cargan por las reglas).
+      if (account.kind === 'loading') return;
+      const url = this.router.url;
+      const isPublic = PUBLIC_PREFIXES.some(p => url.startsWith(p));
+      if (!activeRid && !isPublic && account.kind !== 'platform') {
+        this.router.navigate(['/activar']);
+      }
+    });
+  }
 }

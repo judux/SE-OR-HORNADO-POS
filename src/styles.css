@@ -205,7 +205,9 @@
 
   /* ---- Inputs ----------------------------------------------------------- */
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl border border-dark-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all duration-200 bg-white;
+    @apply w-full px-4 py-3 rounded-xl border border-dark-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none transition-all duration-200 bg-white
+      text-dark-900 placeholder:text-dark-400
+      dark:bg-dark-900 dark:border-dark-600 dark:text-white dark:placeholder:text-dark-500;
   }
 
   /* ---- Glass surface ---------------------------------------------------- */

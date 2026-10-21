@@ -1,14 +1,15 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { Firestore, collection, query, where, getDocs } from '@angular/fire/firestore';
+import { query, where, getDocs } from '@angular/fire/firestore';
 import { User } from '../../shared/interfaces';
+import { TenantService } from '../tenant/tenant.service';
 
 @Injectable({
     providedIn: 'root'
 })
 export class AuthService {
     private currentUser = signal<User | null>(null);
-    private firestore = inject(Firestore);
+    private tenant = inject(TenantService);
 
     readonly user = this.currentUser.asReadonly();
     readonly isLoggedIn = computed(() => this.currentUser() !== null);
@@ -19,30 +20,42 @@ export class AuthService {
     }
 
     /**
-     * Inicia sesión buscando un usuario por su PIN en Firestore.
-     * Retorna el usuario si el PIN es válido, null si no.
+     * Inicia sesión buscando un usuario por su PIN dentro del restaurante de este equipo.
+     * Retorna el usuario si el PIN es válido y está activo, null si no.
      * Si Firestore no responde, el error se propaga: nunca se concede acceso sin validar el PIN.
      */
     async loginByPin(pin: string): Promise<User | null> {
-        const usersRef = collection(this.firestore, 'users');
-        const q = query(usersRef, where('pin_acceso', '==', pin), where('activo', '==', true));
-        const snapshot = await getDocs(q);
+        const rid = this.tenant.activeRid();
+        if (!rid) throw new Error('Este equipo no tiene un restaurante activo');
 
-        if (snapshot.empty) return null;
+        // Se filtra solo por PIN y el estado 'activo' se revisa aquí (no depende de índices compuestos)
+        const snapshot = await getDocs(query(this.tenant.col('users'), where('pin_acceso', '==', pin.trim())));
+        const match = snapshot.docs.find(d => d.data()['activo'] !== false);
+        if (!match) return null;
 
-        const doc = snapshot.docs[0];
-        const user: User = { id: doc.id, ...doc.data() } as User;
+        const user: User = { id: match.id, ...match.data(), rid } as User;
         this.currentUser.set(user);
         this.saveSession(user);
         return user;
+    }
+
+    /** La sesión del empleado solo vale en el restaurante donde inició sesión. */
+    belongsToActiveRestaurant(): boolean {
+        const user = this.currentUser();
+        return !!user && !!user.rid && user.rid === this.tenant.activeRid();
+    }
+
+    /** Borra la sesión del empleado sin navegar (cuando cambia el restaurante del equipo). */
+    clearSession(): void {
+        this.currentUser.set(null);
+        localStorage.removeItem('pos_session');
     }
 
     /**
      * Cierra sesión y redirige al login.
      */
     logout(): void {
-        this.currentUser.set(null);
-        localStorage.removeItem('pos_session');
+        this.clearSession();
         this.router.navigate(['/login']);
     }
 
@@ -76,8 +89,8 @@ export class AuthService {
         if (stored) {
             try {
                 const user: User = JSON.parse(stored);
-                // Descartar sesiones de los antiguos usuarios demo (ids 'default_*')
-                if (!user?.id || user.id.startsWith('default_')) {
+                // Descartar sesiones antiguas: demo ('default_*') o sin restaurante (versión anterior)
+                if (!user?.id || user.id.startsWith('default_') || !user.rid) {
                     localStorage.removeItem('pos_session');
                     return;
                 }

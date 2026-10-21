@@ -3,6 +3,7 @@ import {
     Firestore, collection, collectionData, doc,
     addDoc, updateDoc, deleteDoc, query, where, getDocs
 } from '@angular/fire/firestore';
+import { TenantService } from '../tenant/tenant.service';
 import { Subscription } from 'rxjs';
 import { User } from '../../shared/interfaces';
 
@@ -11,14 +12,18 @@ import { User } from '../../shared/interfaces';
 })
 export class UserService implements OnDestroy {
     private firestore = inject(Firestore);
+    private tenant = inject(TenantService);
     private users = signal<User[]>([]);
     private subscription: Subscription;
 
     readonly allUsers = this.users.asReadonly();
 
     constructor() {
-        const usersRef = collection(this.firestore, 'users');
-        this.subscription = collectionData(usersRef, { idField: 'id' }).subscribe(
+        // Solo escucha los datos del restaurante activo de este equipo
+        this.subscription = this.tenant.watch(
+            rid => collectionData(collection(this.firestore, 'restaurants', rid, 'users'), { idField: 'id' }),
+            [] as any[]
+        ).subscribe(
             (data) => {
                 this.users.set(data as User[]);
             }
@@ -39,7 +44,7 @@ export class UserService implements OnDestroy {
             return false;
         }
         try {
-            const usersRef = collection(this.firestore, 'users');
+            const usersRef = this.tenant.col('users');
             await addDoc(usersRef, user);
             return true;
         } catch (error) {
@@ -55,7 +60,7 @@ export class UserService implements OnDestroy {
             if (existing) return false;
         }
         try {
-            const userDoc = doc(this.firestore, 'users', id);
+            const userDoc = this.tenant.docRef('users', id);
             await updateDoc(userDoc, { ...updates });
             return true;
         } catch (error) {
@@ -66,7 +71,7 @@ export class UserService implements OnDestroy {
 
     async deleteUser(id: string): Promise<void> {
         try {
-            const userDoc = doc(this.firestore, 'users', id);
+            const userDoc = this.tenant.docRef('users', id);
             await deleteDoc(userDoc);
         } catch (error) {
             console.error('Error al eliminar usuario:', error);
@@ -76,7 +81,7 @@ export class UserService implements OnDestroy {
     async toggleActivo(id: string): Promise<void> {
         const user = this.users().find(u => u.id === id);
         if (user) {
-            const userDoc = doc(this.firestore, 'users', id);
+            const userDoc = this.tenant.docRef('users', id);
             await updateDoc(userDoc, { activo: !user.activo });
         }
     }

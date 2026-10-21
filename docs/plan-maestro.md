@@ -35,6 +35,26 @@
   - ~~Las fechas salen en inglés~~: corregido con la configuración regional `es-CO` (commit `c4b5ced`).
   - El texto escrito en las notas se ve muy tenue.
 
+## Estado de la Fase 4: plataforma multi-restaurante (21 de octubre de 2026)
+
+Se adelantó por decisión del dueño, sin fecha límite y dentro del plan gratuito.
+
+**Qué quedó hecho y verificado en el emulador:**
+- **Plataforma:**
+  - `/plataforma` para reclamar la plataforma una sola vez.
+  - Panel para crear restaurantes (cuenta y primer admin), suspenderlos, reactivarlos y agregar administradores.
+  - Opción de copiar el menú y las mesas de la versión anterior.
+- **Datos:** cada restaurante vive en `restaurants/{rid}/...`. Todos los servicios usan `TenantService`.
+- **Reglas:** separación estricta entre restaurantes; las ventas solo se crean; el dueño de la plataforma no lee ventas, órdenes ni gastos. **35 de 35 pruebas** pasan (`npm run test:rules`).
+- **En la app:**
+  - El PIN de un restaurante no sirve en otro.
+  - Cada admin solo ve a su personal y su menú.
+  - La suspensión saca del sistema a los equipos al instante.
+  - Venta, cobro, caja chica y cierre de turno funcionan dentro de cada restaurante.
+- **Marca:** se reemplazó el logo fijo por el nombre de cada restaurante.
+
+Lo que queda para los planes de pago o para después está en `docs/pendientes.md`.
+
 ## Contexto
 
 La app ya cubre casi todo el flujo del PRD: login por PIN, mesas, pedidos con candado, caja, unir y dividir cuentas, venta directa, caja chica y cierre de turno. Funciona en una demo, pero **todavía no es confiable para vender en un restaurante real**. Tiene tres tipos de problemas:

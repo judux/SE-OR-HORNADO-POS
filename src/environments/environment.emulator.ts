@@ -2,8 +2,6 @@
 // El projectId "demo-*" hace que el SDK nunca se conecte a un proyecto real.
 export const environment = {
     production: false,
-    // Cuenta de Firebase Auth que comparten los equipos del restaurante (debe coincidir con firestore.rules)
-    deviceEmail: 'equipos@senorhornado.app',
     useEmulators: true,
     firebase: {
         apiKey: 'demo-api-key',

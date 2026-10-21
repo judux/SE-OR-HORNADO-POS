@@ -3,6 +3,7 @@ import {
     Firestore, collection, collectionData, doc,
     addDoc, updateDoc, deleteDoc
 } from '@angular/fire/firestore';
+import { TenantService } from '../tenant/tenant.service';
 import { Subscription } from 'rxjs';
 import { Product } from '../../shared/interfaces';
 
@@ -11,6 +12,7 @@ import { Product } from '../../shared/interfaces';
 })
 export class ProductService implements OnDestroy {
     private firestore = inject(Firestore);
+    private tenant = inject(TenantService);
     private products = signal<Product[]>([]);
     private subscription: Subscription;
 
@@ -18,8 +20,11 @@ export class ProductService implements OnDestroy {
     readonly availableProducts = computed(() => this.products().filter(p => p.disponible));
 
     constructor() {
-        const productsRef = collection(this.firestore, 'products');
-        this.subscription = collectionData(productsRef, { idField: 'id' }).subscribe(
+        // Solo escucha los datos del restaurante activo de este equipo
+        this.subscription = this.tenant.watch(
+            rid => collectionData(collection(this.firestore, 'restaurants', rid, 'products'), { idField: 'id' }),
+            [] as any[]
+        ).subscribe(
             (data) => {
                 this.products.set(data as Product[]);
             }
@@ -40,7 +45,7 @@ export class ProductService implements OnDestroy {
 
     async addProduct(product: Omit<Product, 'id'>): Promise<void> {
         try {
-            const productsRef = collection(this.firestore, 'products');
+            const productsRef = this.tenant.col('products');
             await addDoc(productsRef, product);
         } catch (error) {
             console.error('Error al agregar producto:', error);
@@ -49,7 +54,7 @@ export class ProductService implements OnDestroy {
 
     async updateProduct(id: string, updates: Partial<Product>): Promise<void> {
         try {
-            const productDoc = doc(this.firestore, 'products', id);
+            const productDoc = this.tenant.docRef('products', id);
             await updateDoc(productDoc, { ...updates });
         } catch (error) {
             console.error('Error al actualizar producto:', error);
@@ -58,7 +63,7 @@ export class ProductService implements OnDestroy {
 
     async deleteProduct(id: string): Promise<void> {
         try {
-            const productDoc = doc(this.firestore, 'products', id);
+            const productDoc = this.tenant.docRef('products', id);
             await deleteDoc(productDoc);
         } catch (error) {
             console.error('Error al eliminar producto:', error);
@@ -68,7 +73,7 @@ export class ProductService implements OnDestroy {
     async toggleDisponible(id: string): Promise<void> {
         const product = this.products().find(p => p.id === id);
         if (product) {
-            const productDoc = doc(this.firestore, 'products', id);
+            const productDoc = this.tenant.docRef('products', id);
             await updateDoc(productDoc, { disponible: !product.disponible });
         }
     }

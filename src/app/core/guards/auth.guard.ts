@@ -1,19 +1,22 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../auth/auth.service';
+import { TenantService } from '../tenant/tenant.service';
 
 /**
- * Guard que verifica si el usuario tiene sesión activa.
- * Redirige a /login si no está autenticado.
+ * Verifica que haya un empleado con sesión (PIN) y que pertenezca al restaurante de este equipo.
+ * Redirige a /login si no.
  */
-export const authGuard: CanActivateFn = () => {
+export const authGuard: CanActivateFn = async () => {
     const authService = inject(AuthService);
+    const tenant = inject(TenantService);
     const router = inject(Router);
 
-    if (authService.isLoggedIn()) {
+    await tenant.whenResolved();
+    if (authService.belongsToActiveRestaurant()) {
         return true;
     }
 
-    router.navigate(['/login']);
-    return false;
+    authService.clearSession();
+    return router.createUrlTree(['/login']);
 };

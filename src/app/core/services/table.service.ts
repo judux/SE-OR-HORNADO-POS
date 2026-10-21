@@ -2,6 +2,7 @@ import { Injectable, signal, inject, OnDestroy } from '@angular/core';
 import {
     Firestore, collection, collectionData, doc, updateDoc, deleteDoc, setDoc
 } from '@angular/fire/firestore';
+import { TenantService } from '../tenant/tenant.service';
 import { Subscription } from 'rxjs';
 import { Table } from '../../shared/interfaces';
 
@@ -10,14 +11,18 @@ import { Table } from '../../shared/interfaces';
 })
 export class TableService implements OnDestroy {
     private firestore = inject(Firestore);
+    private tenant = inject(TenantService);
     private tables = signal<Table[]>([]);
     private subscription: Subscription;
 
     readonly allTables = this.tables.asReadonly();
 
     constructor() {
-        const tablesRef = collection(this.firestore, 'tables');
-        this.subscription = collectionData(tablesRef, { idField: 'id' }).subscribe(
+        // Solo escucha los datos del restaurante activo de este equipo
+        this.subscription = this.tenant.watch(
+            rid => collectionData(collection(this.firestore, 'restaurants', rid, 'tables'), { idField: 'id' }),
+            [] as any[]
+        ).subscribe(
             (data) => {
                 // Ordenar por numero_mesa para mantener el orden visual
                 const sorted = (data as Table[]).sort((a, b) => a.numero_mesa - b.numero_mesa);
@@ -36,7 +41,7 @@ export class TableService implements OnDestroy {
 
     async updateTableStatus(id: string, estado: Table['estado']): Promise<void> {
         try {
-            const tableDoc = doc(this.firestore, 'tables', id);
+            const tableDoc = this.tenant.docRef('tables', id);
             await updateDoc(tableDoc, { estado });
         } catch (error) {
             console.error('Error al actualizar estado de mesa:', error);
@@ -66,7 +71,7 @@ export class TableService implements OnDestroy {
                 estado: 'libre'
             };
 
-            const tableDoc = doc(this.firestore, 'tables', tableId);
+            const tableDoc = this.tenant.docRef('tables', tableId);
             await setDoc(tableDoc, newTable);
             return true;
         } catch (error) {
@@ -77,7 +82,7 @@ export class TableService implements OnDestroy {
 
     async deleteTable(id: string): Promise<boolean> {
         try {
-            const tableDoc = doc(this.firestore, 'tables', id);
+            const tableDoc = this.tenant.docRef('tables', id);
             await deleteDoc(tableDoc);
             return true;
         } catch (error) {

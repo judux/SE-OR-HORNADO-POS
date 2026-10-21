@@ -1,67 +1,146 @@
 rules_version = '2';
 
-// Reglas para el piloto (plan Spark). Ver docs/plan-maestro.md, tarea T-04a.
-// - Solo los equipos activados con la cuenta de equipos del restaurante pueden leer o escribir.
-// - Las ventas (order_history) y los turnos (shifts) solo se pueden CREAR: nunca editar ni borrar.
-// - Todo lo que no esté listado aquí queda denegado.
-// Limitación conocida: no distingue roles (mesero/cajero/admin). Eso llega con Cloud Functions (Sprint 3).
+// Reglas de la plataforma multi-restaurante (plan Spark). Ver docs/plan-maestro.md y docs/pendientes.md.
+//
+// Modelo:
+//   platform/owner              → quién es el dueño de la plataforma (se reclama una sola vez)
+//   platform_admins/{uid}       → cuentas que administran la plataforma
+//   devices/{uid}               → cuenta de restaurante → { rid } (la crea el dueño de la plataforma)
+//   restaurants/{rid}           → datos del restaurante { nombre, estado: activo|suspendido, ... }
+//   restaurants/{rid}/...       → menú, mesas, personal, órdenes, ventas, gastos, turnos
+//
+// Garantías:
+//   - Un equipo solo accede a SU restaurante, y solo mientras esté 'activo'.
+//   - Las ventas (order_history) y los turnos (shifts) solo se crean: nunca se editan ni se borran.
+//   - El dueño de la plataforma administra restaurantes y su personal, pero NO ve ventas, órdenes ni gastos.
+//   - Todo lo que no está listado se niega.
+// Limitación conocida (plan gratuito): el rol del empleado (mesero/cajero/admin) se valida en el
+// dispositivo, no aquí. Ver docs/pendientes.md → custom claims con Blaze.
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isDevice() {
-      return request.auth != null
-        && request.auth.token.email in ['equipos@senorhornado.app'];
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isPlatformAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/platform_admins/$(request.auth.uid));
+    }
+
+    function hasDevice() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/devices/$(request.auth.uid));
+    }
+
+    function deviceRid() {
+      return get(/databases/$(database)/documents/devices/$(request.auth.uid)).data.rid;
+    }
+
+    // Equipo de ESTE restaurante y el restaurante está activo
+    function isDeviceOf(rid) {
+      return hasDevice()
+        && deviceRid() == rid
+        && get(/databases/$(database)/documents/restaurants/$(rid)).data.estado == 'activo';
     }
 
     function isNonNegativeNumber(value) {
       return (value is int || value is float) && value >= 0;
     }
 
-    match /users/{userId} {
-      allow read, write: if isDevice();
+    // ---------------- Plataforma ----------------
+
+    match /platform/owner {
+      allow read: if signedIn();
+      // Se crea junto con platform_admins/{uid} en el mismo batch, una sola vez
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && existsAfter(/databases/$(database)/documents/platform_admins/$(request.auth.uid));
+      allow update, delete: if false;
     }
 
+    match /platform_admins/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isPlatformAdmin();
+      // Solo el primer dueño, y solo si todavía no hay dueño
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && !exists(/databases/$(database)/documents/platform/owner)
+        && getAfter(/databases/$(database)/documents/platform/owner).data.uid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /devices/{uid} {
+      allow read: if (signedIn() && request.auth.uid == uid) || isPlatformAdmin();
+      allow create, update, delete: if isPlatformAdmin();
+    }
+
+    // ---------------- Restaurantes ----------------
+
+    match /restaurants/{rid} {
+      // El equipo puede leer su restaurante aunque esté suspendido (para mostrar el aviso)
+      allow read: if isPlatformAdmin() || (hasDevice() && deviceRid() == rid);
+      allow create, update: if isPlatformAdmin()
+        && request.resource.data.nombre is string
+        && request.resource.data.estado in ['activo', 'suspendido'];
+      allow delete: if false;
+
+      // Personal: lo administra el propio restaurante; la plataforma puede crear o recuperar administradores
+      match /users/{userId} {
+        allow read, write: if isDeviceOf(rid) || isPlatformAdmin();
+      }
+
+      // Menú y mesas: la plataforma puede escribir (para copiar el menú inicial)
+      match /products/{productId} {
+        allow read, write: if isDeviceOf(rid) || isPlatformAdmin();
+      }
+      match /tables/{tableId} {
+        allow read, write: if isDeviceOf(rid) || isPlatformAdmin();
+      }
+
+      match /config/{configId} {
+        allow read, write: if isDeviceOf(rid) || isPlatformAdmin();
+      }
+
+      // Operación diaria: solo los equipos del restaurante
+      match /orders/{orderId} {
+        allow read, delete: if isDeviceOf(rid);
+        allow create, update: if isDeviceOf(rid)
+          && request.resource.data.items is list
+          && isNonNegativeNumber(request.resource.data.total);
+      }
+
+      match /order_history/{saleId} {
+        allow read: if isDeviceOf(rid);
+        allow create: if isDeviceOf(rid)
+          && request.resource.data.estado == 'pagada'
+          && request.resource.data.items is list
+          && request.resource.data.items.size() > 0
+          && isNonNegativeNumber(request.resource.data.total)
+          && request.resource.data.metodo_pago in ['efectivo', 'transferencia'];
+        allow update, delete: if false;
+      }
+
+      match /expenses/{expenseId} {
+        allow read, delete: if isDeviceOf(rid);
+        allow create: if isDeviceOf(rid)
+          && request.resource.data.motivo is string
+          && isNonNegativeNumber(request.resource.data.monto);
+        allow update: if false;
+      }
+
+      match /shifts/{shiftId} {
+        allow read, create: if isDeviceOf(rid);
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------------- Versión anterior (un solo restaurante) ----------------
+    // Solo lectura para el dueño de la plataforma, para copiar el menú y las mesas al crear un restaurante.
     match /products/{productId} {
-      allow read, write: if isDevice();
+      allow read: if isPlatformAdmin();
     }
-
     match /tables/{tableId} {
-      allow read, write: if isDevice();
-    }
-
-    match /orders/{orderId} {
-      allow read, delete: if isDevice();
-      allow create, update: if isDevice()
-        && request.resource.data.items is list
-        && isNonNegativeNumber(request.resource.data.total);
-    }
-
-    match /order_history/{saleId} {
-      allow read: if isDevice();
-      allow create: if isDevice()
-        && request.resource.data.estado == 'pagada'
-        && request.resource.data.items is list
-        && request.resource.data.items.size() > 0
-        && isNonNegativeNumber(request.resource.data.total)
-        && request.resource.data.metodo_pago in ['efectivo', 'transferencia'];
-      allow update, delete: if false;
-    }
-
-    match /expenses/{expenseId} {
-      allow read, delete: if isDevice();
-      allow create: if isDevice()
-        && request.resource.data.motivo is string
-        && isNonNegativeNumber(request.resource.data.monto);
-      allow update: if false;
-    }
-
-    match /shifts/{shiftId} {
-      allow read, create: if isDevice();
-      allow update, delete: if false;
-    }
-
-    match /config/{configId} {
-      allow read, write: if isDevice();
+      allow read: if isPlatformAdmin();
     }
   }
 }

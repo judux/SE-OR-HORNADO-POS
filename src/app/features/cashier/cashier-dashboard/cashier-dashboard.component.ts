@@ -10,6 +10,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
 import { Order, OrderItem, Product } from '../../../shared/interfaces';
 import { detectOrderChanges } from '../../../core/services/order.logic';
 import { ConnectionService, TimeoutError } from '../../../core/services/connection.service';
+import { TenantService } from '../../../core/tenant/tenant.service';
 
 @Component({
   selector: 'app-cashier-dashboard',
@@ -611,6 +612,7 @@ export class CashierDashboardComponent implements OnDestroy {
   public pettyCashService = inject(PettyCashService);
   public shiftService = inject(ShiftService);
   private connection = inject(ConnectionService);
+  private tenant = inject(TenantService);
   private toast = inject(ToastService);
   private confirmDialog = inject(ConfirmDialogService);
 
@@ -969,7 +971,7 @@ export class CashierDashboardComponent implements OnDestroy {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     printWindow.document.write(`
-      <html><head><title>Cierre de Turno - Señor Hornado</title>
+      <html><head><title>Cierre de Turno - ${this.tenant.restaurant()?.nombre ?? ''}</title>
       <style>body{font-family:system-ui,sans-serif;padding:20px;max-width:600px;margin:0 auto}
       h3{font-size:18px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #eee;text-align:left}
       .right{text-align:right}.bold{font-weight:bold}.total{font-size:20px;border-top:2px solid #333;padding-top:10px}</style>

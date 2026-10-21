@@ -3,6 +3,7 @@ import {
     Firestore, collection, collectionData, doc,
     setDoc, Timestamp, runTransaction, DocumentReference
 } from '@angular/fire/firestore';
+import { TenantService } from '../tenant/tenant.service';
 import { Subscription } from 'rxjs';
 import { Product, OrderItem, Order } from '../../shared/interfaces';
 import { TableService } from './table.service';
@@ -26,6 +27,7 @@ export class OrderService implements OnDestroy {
     readonly ordersLoaded = signal(false);
 
     private firestore = inject(Firestore);
+    private tenant = inject(TenantService);
     private tableService = inject(TableService);
     private authService = inject(AuthService);
 
@@ -58,8 +60,11 @@ export class OrderService implements OnDestroy {
 
     constructor() {
         // Suscripción a órdenes activas en tiempo real
-        const ordersRef = collection(this.firestore, 'orders');
-        this.ordersSubscription = collectionData(ordersRef, { idField: 'id' }).subscribe(
+        // Solo escucha las órdenes del restaurante activo de este equipo
+        this.ordersSubscription = this.tenant.watch(
+            rid => collectionData(collection(this.firestore, 'restaurants', rid, 'orders'), { idField: 'id' }),
+            [] as any[]
+        ).subscribe(
             (data) => {
                 this.activeOrders.set((data as any[]).map(toOrder));
                 this.ordersLoaded.set(true);
@@ -119,7 +124,7 @@ export class OrderService implements OnDestroy {
 
         if (linesToSend.length === 0 && !knownOrderId) return false;
 
-        const tableRef = doc(this.firestore, 'tables', tId);
+        const tableRef = this.tenant.docRef('tables', tId);
 
         try {
             await runTransaction(this.firestore, async (tx) => {
@@ -134,7 +139,7 @@ export class OrderService implements OnDestroy {
                 let orderRef: DocumentReference | null = null;
                 let existingItems: OrderItem[] = [];
                 for (const id of candidateIds) {
-                    const ref = doc(this.firestore, 'orders', id);
+                    const ref = this.tenant.docRef('orders', id);
                     const snap = await tx.get(ref);
                     if (snap.exists()) {
                         orderRef = ref;
@@ -160,7 +165,7 @@ export class OrderService implements OnDestroy {
 
                 if (linesToSend.length === 0) throw new Error('No hay productos para crear la orden');
 
-                const newOrderRef = doc(collection(this.firestore, 'orders'));
+                const newOrderRef = this.tenant.newDocRef('orders');
                 const subtotal = sumItems(linesToSend);
                 tx.set(newOrderRef, {
                     id_mesa: tId,
@@ -233,8 +238,8 @@ export class OrderService implements OnDestroy {
      * El total se recalcula a partir de las líneas guardadas en el servidor.
      */
     async closeOrder(orderId: string, method: 'efectivo' | 'transferencia'): Promise<boolean> {
-        const orderRef = doc(this.firestore, 'orders', orderId);
-        const historyRef = doc(this.firestore, 'order_history', orderId);
+        const orderRef = this.tenant.docRef('orders', orderId);
+        const historyRef = this.tenant.docRef('order_history', orderId);
 
         try {
             await runTransaction(this.firestore, async (tx) => {
@@ -254,7 +259,7 @@ export class OrderService implements OnDestroy {
                 const total = sumItems(items);
 
                 const tableId = order['id_mesa'] as string;
-                const tableRef = tableId && tableId !== 'para_llevar' ? doc(this.firestore, 'tables', tableId) : null;
+                const tableRef = tableId && tableId !== 'para_llevar' ? this.tenant.docRef('tables', tableId) : null;
                 const tableSnap = tableRef ? await tx.get(tableRef) : null;
 
                 tx.set(historyRef, {
@@ -290,7 +295,7 @@ export class OrderService implements OnDestroy {
     // así un envío simultáneo del mesero no hace reaparecer ni desaparecer otras líneas.
     async removeItemFromOrder(orderId: string, lineId: string): Promise<boolean> {
         if (!lineId) return false;
-        const orderDoc = doc(this.firestore, 'orders', orderId);
+        const orderDoc = this.tenant.docRef('orders', orderId);
 
         try {
             return await runTransaction(this.firestore, async (tx) => {
@@ -337,19 +342,19 @@ export class OrderService implements OnDestroy {
                 // Lecturas primero (regla de las transacciones)
                 const allItems: OrderItem[] = [];
                 for (const o of ordersToMerge) {
-                    const snap = await tx.get(doc(this.firestore, 'orders', o.id));
+                    const snap = await tx.get(this.tenant.docRef('orders', o.id));
                     if (!snap.exists()) throw new Error('Una de las órdenes ya no existe');
                     allItems.push(...((snap.data()['items'] ?? []) as OrderItem[]));
                 }
                 const secondaryTableExists: boolean[] = [];
                 for (const o of secondaries) {
-                    secondaryTableExists.push((await tx.get(doc(this.firestore, 'tables', o.id_mesa))).exists());
+                    secondaryTableExists.push((await tx.get(this.tenant.docRef('tables', o.id_mesa))).exists());
                 }
 
                 const mergedItems = mergeLines([], allItems);
                 const mergedSubtotal = sumItems(mergedItems);
 
-                tx.update(doc(this.firestore, 'orders', primary.id), {
+                tx.update(this.tenant.docRef('orders', primary.id), {
                     items: mergedItems,
                     subtotal: mergedSubtotal,
                     total: mergedSubtotal,
@@ -358,9 +363,9 @@ export class OrderService implements OnDestroy {
                 });
 
                 secondaries.forEach((o, i) => {
-                    tx.delete(doc(this.firestore, 'orders', o.id));
+                    tx.delete(this.tenant.docRef('orders', o.id));
                     if (secondaryTableExists[i]) {
-                        tx.update(doc(this.firestore, 'tables', o.id_mesa), this.tableStateAfterRemoving(o.id_mesa, [o.id]));
+                        tx.update(this.tenant.docRef('tables', o.id_mesa), this.tableStateAfterRemoving(o.id_mesa, [o.id]));
                     }
                 });
             });
@@ -374,8 +379,8 @@ export class OrderService implements OnDestroy {
     // ✂️ Dividir Cuenta — Mover las líneas elegidas (por line_id) a una nueva orden de la misma mesa
     async splitOrder(orderId: string, lineIds: string[]): Promise<string | null> {
         if (lineIds.length === 0) return null;
-        const orderRef = doc(this.firestore, 'orders', orderId);
-        const newOrderRef = doc(collection(this.firestore, 'orders'));
+        const orderRef = this.tenant.docRef('orders', orderId);
+        const newOrderRef = this.tenant.newDocRef('orders');
 
         try {
             await runTransaction(this.firestore, async (tx) => {
@@ -438,7 +443,7 @@ export class OrderService implements OnDestroy {
             agregado_en: Date.now()
         }));
         const subtotal = sumItems(orderItems);
-        const orderRef = doc(collection(this.firestore, 'orders'));
+        const orderRef = this.tenant.newDocRef('orders');
 
         try {
             await setDoc(orderRef, {

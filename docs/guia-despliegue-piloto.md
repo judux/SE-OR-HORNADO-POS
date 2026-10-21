@@ -1,77 +1,49 @@
-# Guía de despliegue: piloto del sábado 24 de octubre
+# Guía: poner en marcha la plataforma y un restaurante
 
-> Sigue los pasos **en este orden**. Los pasos 1 a 3 se hacen en la consola de Firebase (https://console.firebase.google.com, proyecto **senor-hornado-pos-8412**). El paso 4 se hace en la terminal.
-> Tiempo estimado: 1 a 2 horas, la mayor parte cargando el menú real.
+> Todo se hace **desde la app**. No hace falta entrar a la consola de Firebase.
+> El despliegue (subir la versión nueva) lo hace Claude con la CLI de Firebase.
 
----
+## Cómo está organizado
 
-## 1. Crear la cuenta de equipos (Firebase Authentication)
+| Quién | Dónde entra | Qué hace |
+|---|---|---|
+| **Dueño de la plataforma** (tú) | `/plataforma` con su correo y contraseña | Crea restaurantes, su cuenta y su primer administrador; suspende o reactiva restaurantes |
+| **Equipo del restaurante** (celular, tablet o PC) | `/activar`, una sola vez, con la cuenta del restaurante | Queda vinculado a ese restaurante |
+| **Personal** (admin, cajero o mesero) | PIN de 4 dígitos en un equipo activado | Trabaja solo con los datos de **su** restaurante |
 
-1. Ve a **Authentication → Comenzar**, si aún no está activo.
-2. En **Método de acceso**, habilita **Correo electrónico/contraseña**. **No** actives el "vínculo de correo electrónico".
-3. En **Usuarios → Agregar usuario**:
-   - Correo: `equipos@senorhornado.app`. Debe ser **exactamente** este, porque está escrito en `firestore.rules` y en los `environment`.
-   - Contraseña: una **larga y única**, de al menos 12 caracteres. Guárdala en un lugar seguro, **no** en el repositorio ni en un chat.
-4. Si quieres cambiar el correo, hay que cambiarlo en `firestore.rules` y en `src/environments/*.ts`, y volver a desplegar.
+## 1. Reclamar la plataforma (una sola vez, en cuanto se despliegue)
 
-> ¿Por qué funciona? Las reglas solo aceptan ese correo, y como ya existe una cuenta con él, nadie más puede registrarlo.
+1. Abre `https://senor-hornado-pos-8412.web.app/plataforma`.
+2. Elige **"Primera vez"** y escribe tu nombre, tu correo y una contraseña de al menos 8 caracteres.
+3. Pulsa **Crear cuenta de dueño**. Esto solo funciona una vez: después nadie más puede reclamar la plataforma.
 
-## 2. Limpiar los datos de prueba (Firestore Database)
+> Hazlo justo después del despliegue. Mientras la plataforma no tenga dueño, cualquiera que conozca la dirección podría reclamarla primero.
 
-Hazlo **antes** de desplegar las reglas nuevas, porque después nadie podrá borrar ventas, ni siquiera tú desde la app. La consola de Firebase sí puede, porque ignora las reglas.
+## 2. Crear un restaurante
 
-1. Borra las colecciones de prueba: `orders`, `order_history`, `expenses` y, si existen, `shifts` y `config`.
-2. En `tables`: deja solo las mesas reales. En cada una, `estado` debe ser `libre`, y si existe el campo `id_orden_actual`, bórralo o ponlo en `null`.
-3. En `users`:
-   - Crea **al menos un administrador real** con los campos `nombre`, `rol` = `admin`, `pin_acceso` (4 dígitos, string), `activo` = `true`.
-   - Borra o desactiva cualquier usuario con PINs fáciles (`1234`, `1111`, `2222`, `3333`). Ya no hay PINs maestros en el código: **si no hay un admin en esta colección, nadie podrá entrar**.
+En el panel, pulsa **Nuevo restaurante** y completa:
+- **Nombre:** por ejemplo "Señor Hornado".
+- **Cuenta para activar sus equipos:** un correo (no tiene que existir de verdad) y una contraseña de 8 o más caracteres. Esta cuenta es la que el restaurante usa en sus celulares y en la caja.
+- **Administrador:** su nombre y un PIN de 4 dígitos.
+- **Copiar el menú y las mesas de la versión anterior:** márcalo solo para Señor Hornado. Copia los productos y mesas que ya existían.
 
-## 3. Revisar el uso gratis (opcional pero recomendado)
+## 3. Activar los equipos del restaurante
 
-En **Firestore → Uso** puedes ver las lecturas y escrituras por día. Durante el piloto, revísalo al final del día. La cuota gratis es de 50.000 lecturas y 20.000 escrituras diarias.
-
-## 4. Desplegar (terminal, en la carpeta del proyecto)
-
-```bash
-npx ng build --configuration production
-```
-
-```bash
-npx firebase deploy --only hosting,firestore:rules --project senor-hornado-pos-8412
-```
-
-Si te pide iniciar sesión, ejecuta antes `npx firebase login`.
-
-**Comprobar:**
-- Abre `https://senor-hornado-pos-8412.web.app` en una ventana privada. Debe aparecer **"Activar este equipo"**.
-- En la consola de Firebase, **Firestore → Reglas** debe mostrar las reglas nuevas (las que mencionan `equipos@senorhornado.app`).
-
-## 5. Activar cada dispositivo (el dueño o tú)
-
-En **cada** celular de mesero y en la tablet o PC de caja:
-
+En cada celular de mesero y en la caja:
 1. Abre `https://senor-hornado-pos-8412.web.app`.
-2. En **Activar este equipo**, escribe la contraseña de la cuenta de equipos. El correo ya viene puesto.
+2. Escribe el correo y la contraseña **de la cuenta del restaurante**.
 3. **Instala la app:**
    - Android (Chrome): menú ⋮ → *Agregar a pantalla principal*.
-   - iPhone (Safari): botón compartir → *Agregar a inicio*.
-4. Entra con el PIN de esa persona y comprueba que ve su módulo.
-5. Solo en la caja: toca **"Activar el sonido de comandas nuevas"**.
+   - iPhone (Safari): compartir → *Agregar a inicio*.
+4. Entra con el PIN. En la caja, toca **"activar el sonido"**.
 
-> La activación se guarda en el dispositivo. Si se borran los datos del navegador, hay que volver a activarlo.
+## 4. El admin del restaurante crea a su personal
 
-## 6. Cargar los datos reales (panel de Admin)
+Con su PIN, el administrador entra a **Usuarios → Nuevo usuario** y crea a sus meseros y cajeros, cada uno con su propio PIN. En **Menú** y **Mesas** ajusta productos, precios y mesas.
 
-Entra con el PIN de admin:
-- **Productos:** nombre, precio en pesos y categoría. Revísalos con el dueño, porque es lo que más errores causa.
-- **Mesas:** crea las mesas reales.
-- **Usuarios:** un PIN **único** para cada mesero y cajero.
+## 5. Ensayo general
 
-## 7. Ensayo general (viernes en la tarde)
-
-Recorre el guion de pruebas de `docs/piloto-2026-10-24.md` en los **dispositivos reales** y anota cada resultado. Decide si el piloto va o no con los criterios de la sección 2.4 de `docs/plan-maestro.md`.
-
-**A las 6 p. m. del viernes se congela el código:** el sábado solo se despliega una corrección si algo crítico falla.
+Recorre el guion de `docs/piloto-2026-10-24.md` en los dispositivos reales.
 
 ---
 
@@ -79,12 +51,13 @@ Recorre el guion de pruebas de `docs/piloto-2026-10-24.md` en los **dispositivos
 
 | Problema | Qué hacer |
 |---|---|
-| Nadie puede entrar con su PIN | Revisa que exista un usuario `admin` activo en `users` (paso 2.3) y que el equipo esté activado |
-| "Correo o contraseña incorrectos" al activar | Revisa la contraseña de la cuenta de equipos en Authentication; puedes restablecerla desde la consola |
-| La app nueva falla y hay que volver atrás | Consola → **Hosting → Historial de versiones** → *Revertir* a la anterior |
-| Todo falla durante el servicio | **Procedimiento de respaldo en papel** (sección 2.5 del plan maestro) y avísame con el error que ves |
+| "La cuenta … no pertenece a ningún restaurante" | Se activó con una cuenta antigua (por ejemplo `equipos@senorhornado.app`). Pulsa "Usar otra" y entra con la cuenta del restaurante |
+| "Restaurante suspendido" | Reactívalo desde `/plataforma` |
+| El admin olvidó su PIN | En `/plataforma`, en el restaurante, pulsa **Agregar administrador** y crea uno nuevo |
+| "PIN incorrecto" | El PIN no existe en **ese** restaurante: los PINs de un restaurante no sirven en otro |
+| Hay que volver a la versión anterior | Pídeselo a Claude, o en la consola: **Hosting → Historial de versiones → Revertir** |
 
-## Probar en tu PC sin tocar producción
+## Probar en tu PC sin tocar producción (para desarrollo)
 
 ```bash
 npm run emulators
@@ -93,11 +66,19 @@ npm run emulators
 En otra terminal:
 
 ```bash
-npm run seed:emu
+node scripts/seed-emulator.mjs --demo
 ```
 
 ```bash
 npm run start:emu
 ```
 
-Abre `http://localhost:4200`. En el emulador, `npm run seed:emu` crea la cuenta de equipos con la contraseña de prueba `clave-de-prueba-123`. Los PINs de prueba son: admin 9001, meseros 1111/3333, cajero 2222.
+Abre `http://localhost:4200`. Todas las cuentas de la demo usan la contraseña `clave-de-prueba-123`:
+
+| Cuenta | Uso | PINs |
+|---|---|---|
+| `dueno@prueba.app` | `/plataforma` | — |
+| `caja@prueba.app` | Señor Hornado | admin 4821, mesero 1111, cajero 2222 |
+| `asadero@prueba.app` | Asadero Prueba | admin 4821 |
+
+Las reglas se prueban con `npm run test:rules` (35 casos). Ese comando borra los datos del emulador.

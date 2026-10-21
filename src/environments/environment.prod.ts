@@ -1,7 +1,5 @@
 export const environment = {
     production: true,
-    // Cuenta de Firebase Auth que comparten los equipos del restaurante (debe coincidir con firestore.rules)
-    deviceEmail: 'equipos@senorhornado.app',
     useEmulators: false,
     firebase: {
         apiKey: 'AIzaSyCjj33RBuAzycXjVDeGiYRPlG64i6rb2C0',

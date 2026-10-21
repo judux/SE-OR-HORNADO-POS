@@ -1,6 +1,9 @@
-// Carga datos de PRUEBA en el emulador local de Firestore (npm run seed:emu).
+// Prepara el EMULADOR local para parecerse a la producción actual (npm run seed:emu).
 // Solo habla con localhost: nunca toca el proyecto de producción.
 // Requiere que el emulador esté corriendo (npm run emulators).
+//
+// Estado que deja: menú y mesas de la versión anterior (colecciones sueltas), sin plataforma ni
+// restaurantes. Desde la app: /plataforma → "Primera vez" → crear restaurante (copiando el menú).
 
 const PROJECT = 'demo-senor-hornado';
 const BASE = `http://127.0.0.1:8080/v1/projects/${PROJECT}/databases/(default)/documents`;
@@ -30,16 +33,11 @@ async function put(collection, id, data) {
 }
 
 async function wipe() {
-    const res = await fetch(`http://127.0.0.1:8080/emulator/v1/projects/${PROJECT}/databases/(default)/documents`, { method: 'DELETE' });
-    if (!res.ok) throw new Error(`No se pudo limpiar el emulador: ${res.status}`);
+    const fs = await fetch(`http://127.0.0.1:8080/emulator/v1/projects/${PROJECT}/databases/(default)/documents`, { method: 'DELETE' });
+    if (!fs.ok) throw new Error(`No se pudo limpiar Firestore del emulador: ${fs.status}`);
+    const auth = await fetch(`http://127.0.0.1:9099/emulator/v1/projects/${PROJECT}/accounts`, { method: 'DELETE' });
+    if (!auth.ok) throw new Error(`No se pudo limpiar Auth del emulador: ${auth.status}`);
 }
-
-const users = [
-    { id: 'u_admin', nombre: 'Admin Prueba', rol: 'admin', pin_acceso: '9001', activo: true },
-    { id: 'u_mesero1', nombre: 'Mesero Uno', rol: 'mesero', pin_acceso: '1111', activo: true },
-    { id: 'u_mesero2', nombre: 'Mesero Dos', rol: 'mesero', pin_acceso: '3333', activo: true },
-    { id: 'u_cajero', nombre: 'Cajero Prueba', rol: 'cajero', pin_acceso: '2222', activo: true },
-];
 
 const products = [
     { id: 'p_hornado', nombre: 'Hornado', precio: 15000, categoria: 'platos', disponible: true, notas_permitidas: true },
@@ -52,24 +50,56 @@ const products = [
     { id: 'p_agotado', nombre: 'Chicharrón (agotado)', precio: 9000, categoria: 'porciones', disponible: false, notas_permitidas: false },
 ];
 
-async function createDeviceAccount() {
-    // Cuenta de equipos de PRUEBA en el emulador de Auth (la real se crea en la consola de Firebase)
-    await fetch(`http://127.0.0.1:9099/emulator/v1/projects/${PROJECT}/accounts`, { method: 'DELETE' });
+await wipe();
+for (const { id, ...p } of products) await put('products', id, p);
+for (let n = 1; n <= 4; n++) {
+    await put('tables', `mesa_${n}`, { id: `mesa_${n}`, numero_mesa: n, capacidad: 4, estado: 'libre' });
+}
+console.log(`Emulador listo (como producción): ${products.length} productos y 4 mesas de la versión anterior.`);
+
+if (!process.argv.includes('--demo')) {
+    console.log('Siguiente paso: http://localhost:4200/plataforma → "Primera vez" para reclamar la plataforma.');
+    process.exit(0);
+}
+
+// --demo: además crea la plataforma, dos restaurantes y su personal (para probar rápido)
+async function account(email) {
     const res = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-api-key', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'equipos@senorhornado.app', password: 'clave-de-prueba-123', returnSecureToken: true })
+        body: JSON.stringify({ email, password: 'clave-de-prueba-123', returnSecureToken: true })
     });
-    if (!res.ok) throw new Error(`No se pudo crear la cuenta de equipos: ${res.status}`);
+    if (!res.ok) throw new Error(`No se pudo crear ${email}: ${res.status}`);
+    return (await res.json()).localId;
 }
 
-await wipe();
-await createDeviceAccount();
-for (const { id, ...u } of users) await put('users', id, u);
-for (const { id, ...p } of products) await put('products', id, p);
-for (let n = 1; n <= 6; n++) {
-    await put('tables', `mesa_${n}`, { id: `mesa_${n}`, numero_mesa: n, capacidad: 4, estado: 'libre', id_orden_actual: null });
+const now = new Date().toISOString();
+const ownerUid = await account('dueno@prueba.app');
+await put('platform_admins', ownerUid, { email: 'dueno@prueba.app', nombre: 'Dueño Prueba' });
+await put('platform', 'owner', { uid: ownerUid, email: 'dueno@prueba.app' });
+
+const restaurantes = [
+    { rid: 'senor-hornado-demo', nombre: 'Señor Hornado', email: 'caja@prueba.app', copiar: true,
+      personal: [['Johan', 'admin', '4821'], ['Carlos', 'mesero', '1111'], ['Ana', 'cajero', '2222']] },
+    { rid: 'asadero-prueba-demo', nombre: 'Asadero Prueba', email: 'asadero@prueba.app', copiar: false,
+      personal: [['Admin Asadero', 'admin', '4821']] },
+];
+for (const r of restaurantes) {
+    const uid = await account(r.email);
+    await put('restaurants', r.rid, { nombre: r.nombre, estado: 'activo', cuenta_email: r.email, cuenta_uid: uid, creado_por: ownerUid });
+    await put('devices', uid, { rid: r.rid, email: r.email });
+    await put(`restaurants/${r.rid}/config`, 'turno_actual', { abierto_por: 'plataforma' });
+    for (const [i, [nombre, rol, pin]] of r.personal.entries()) {
+        await put(`restaurants/${r.rid}/users`, `u${i}`, { nombre, rol, pin_acceso: pin, activo: true });
+    }
+    if (r.copiar) {
+        for (const { id, ...p } of products) await put(`restaurants/${r.rid}/products`, id, p);
+        for (let n = 1; n <= 4; n++) {
+            await put(`restaurants/${r.rid}/tables`, `mesa_${n}`, { id: `mesa_${n}`, numero_mesa: n, capacidad: 4, estado: 'libre' });
+        }
+    }
 }
-console.log(`Emulador listo: ${users.length} usuarios, ${products.length} productos, 6 mesas.`);
-console.log('Cuenta de equipos (solo emulador): equipos@senorhornado.app / clave-de-prueba-123');
-console.log('PINs de prueba (solo emulador): admin 9001 · mesero 1111 / 3333 · cajero 2222');
+console.log('Demo creada (contraseña de todas las cuentas: clave-de-prueba-123):');
+console.log('  Plataforma: dueno@prueba.app');
+console.log('  Señor Hornado: caja@prueba.app → PINs admin 4821 · mesero 1111 · cajero 2222');
+console.log('  Asadero Prueba: asadero@prueba.app → PIN admin 4821');

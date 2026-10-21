@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { Firestore, collection, doc, addDoc, deleteDoc, Timestamp } from '@angular/fire/firestore';
+import { TenantService } from '../tenant/tenant.service';
 import { ShiftService } from './shift.service';
 import { AuthService } from '../auth/auth.service';
 
@@ -10,6 +11,7 @@ export type { Expense } from './shift.service';
 })
 export class PettyCashService {
     private firestore = inject(Firestore);
+    private tenant = inject(TenantService);
     private shiftService = inject(ShiftService);
     private authService = inject(AuthService);
 
@@ -21,7 +23,7 @@ export class PettyCashService {
         if (!motivo.trim() || monto <= 0) return false;
 
         try {
-            const expensesRef = collection(this.firestore, 'expenses');
+            const expensesRef = this.tenant.col('expenses');
             await addDoc(expensesRef, {
                 motivo: motivo.trim(),
                 monto,
@@ -38,7 +40,7 @@ export class PettyCashService {
     // Permite corregir un gasto mal registrado dentro del turno
     async removeExpense(id: string): Promise<void> {
         try {
-            const expenseDoc = doc(this.firestore, 'expenses', id);
+            const expenseDoc = this.tenant.docRef('expenses', id);
             await deleteDoc(expenseDoc);
         } catch (error) {
             console.error('Error al eliminar gasto:', error);

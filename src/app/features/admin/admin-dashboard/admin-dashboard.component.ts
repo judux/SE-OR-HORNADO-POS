@@ -4,6 +4,7 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { Firestore, collection, collectionData, query, orderBy, limit } from '@angular/fire/firestore';
 import { map, switchMap } from 'rxjs';
 import { ShiftService } from '../../../core/services/shift.service';
+import { TenantService } from '../../../core/tenant/tenant.service';
 import { Order } from '../../../shared/interfaces';
 
 type Periodo = 'hoy' | '7d' | '30d';
@@ -193,6 +194,7 @@ type Periodo = 'hoy' | '7d' | '30d';
 export class AdminDashboardComponent {
   private shiftService = inject(ShiftService);
   private firestore = inject(Firestore);
+  private tenant = inject(TenantService);
 
   readonly periodos: { value: Periodo; label: string }[] = [
     { value: 'hoy', label: 'Hoy' },
@@ -205,15 +207,18 @@ export class AdminDashboardComponent {
   // Ventas del periodo elegido (consulta filtrada por fecha: no descarga todo el historial)
   orderHistory = toSignal(
     toObservable(this.periodo).pipe(
-      switchMap(p => this.shiftService.salesSince(this.periodStart(p)))
+      switchMap(p => this.tenant.watch(() => this.shiftService.salesSince(this.periodStart(p)), [] as Order[]))
     ),
     { initialValue: [] as Order[] }
   );
 
   // Últimos turnos archivados
   shifts = toSignal(
-    collectionData(query(collection(this.firestore, 'shifts'), orderBy('fin', 'desc'), limit(15)), { idField: 'id' }).pipe(
-      map(list => (list as any[]).map(s => ({ ...s, fin: s.fin?.toDate ? s.fin.toDate() : s.fin })))
+    this.tenant.watch(
+      rid => collectionData(query(collection(this.firestore, 'restaurants', rid, 'shifts'), orderBy('fin', 'desc'), limit(15)), { idField: 'id' }).pipe(
+        map(list => (list as any[]).map(s => ({ ...s, fin: s.fin?.toDate ? s.fin.toDate() : s.fin })))
+      ),
+      [] as any[]
     ),
     { initialValue: [] as any[] }
   );

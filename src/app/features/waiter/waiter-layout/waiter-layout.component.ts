@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core';
+import { TenantService } from '../../../core/tenant/tenant.service';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
@@ -22,7 +23,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
             </button>
           }
           
-          <img src="logo.png" alt="Señor Hornado" class="h-8 sm:h-9 object-contain invert drop-shadow-sm">
+          <span class="text-white font-extrabold text-base sm:text-lg tracking-tight truncate max-w-[45vw]">{{ tenant.restaurant()?.nombre }}</span>
           
           <div class="border-l border-dark-700 pl-3">
             <h1 class="text-sm sm:text-base font-bold leading-tight tracking-tight">{{ isTakingOrder ? 'Tomar Pedido' : 'Plano de Mesas' }}</h1>
@@ -61,6 +62,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
   `,
 })
 export class WaiterLayoutComponent {
+  public tenant = inject(TenantService);
   public authService = inject(AuthService);
   public themeService = inject(ThemeService);
   private router = inject(Router);

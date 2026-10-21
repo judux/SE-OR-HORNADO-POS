@@ -7,6 +7,7 @@ import {
 import { Observable, map, of, switchMap } from 'rxjs';
 import { Order } from '../../shared/interfaces';
 import { AuthService } from '../auth/auth.service';
+import { TenantService } from '../tenant/tenant.service';
 import { countItems } from './order.logic';
 
 export interface Expense {
@@ -58,12 +59,17 @@ export class ShiftService {
     private firestore = inject(Firestore);
     private authService = inject(AuthService);
     private injector = inject(Injector);
+    private tenant = inject(TenantService);
 
-    private readonly turnoRef = doc(this.firestore, 'config', 'turno_actual');
-
-    // Si aún no existe el documento, el turno abarca todo el historial (no se oculta nada)
+    // Inicio del turno del restaurante activo. Si aún no existe el documento, el turno abarca
+    // todo el historial (no se oculta nada). Sin restaurante activo: null.
     readonly turnoInicio = toSignal(
-        docData(this.turnoRef).pipe(map((data): Date | null => toDate((data as any)?.inicio) ?? new Date(0))),
+        this.tenant.watch(
+            rid => docData(doc(this.firestore, 'restaurants', rid, 'config', 'turno_actual')).pipe(
+                map((data): Date | null => toDate((data as any)?.inicio) ?? new Date(0))
+            ),
+            null as Date | null
+        ),
         { initialValue: null as Date | null }
     );
 
@@ -78,7 +84,7 @@ export class ShiftService {
         toObservable(this.turnoInicio, { injector: this.injector }).pipe(
             switchMap(inicio => {
                 if (!inicio) return of([] as Expense[]);
-                const q = query(collection(this.firestore, 'expenses'), where('fecha', '>=', Timestamp.fromDate(inicio)));
+                const q = query(this.tenant.col('expenses'), where('fecha', '>=', Timestamp.fromDate(inicio)));
                 return collectionData(q, { idField: 'id' }).pipe(
                     map(list => (list as any[]).map(e => ({ ...e, fecha: toDate(e.fecha) ?? new Date(0) }) as Expense))
                 );
@@ -92,7 +98,7 @@ export class ShiftService {
     /** Ventas cobradas desde una fecha (para el turno o los reportes del admin). */
     salesSince(since: Date): Observable<Order[]> {
         const q = query(
-            collection(this.firestore, 'order_history'),
+            this.tenant.col('order_history'),
             where('fecha_cierre', '>=', Timestamp.fromDate(since)),
             orderBy('fecha_cierre', 'desc')
         );
@@ -136,7 +142,7 @@ export class ShiftService {
         const summary = this.buildSummary();
         const user = this.authService.user();
         const batch = writeBatch(this.firestore);
-        const shiftRef = doc(collection(this.firestore, 'shifts'));
+        const shiftRef = this.tenant.newDocRef('shifts');
         const now = Timestamp.now();
 
         batch.set(shiftRef, {
@@ -148,7 +154,7 @@ export class ShiftService {
             cerrado_por: user?.id ?? 'desconocido',
             nombre_cerrado_por: user?.nombre ?? 'Desconocido'
         });
-        batch.set(this.turnoRef, { inicio: now, abierto_por: user?.id ?? 'desconocido' });
+        batch.set(this.tenant.docRef('config', 'turno_actual'), { inicio: now, abierto_por: user?.id ?? 'desconocido' });
 
         try {
             await batch.commit();
