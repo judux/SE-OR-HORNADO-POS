@@ -1,12 +1,14 @@
-import { Component, signal, computed, inject, effect, OnDestroy } from '@angular/core';
+import { Component, signal, computed, inject, effect, untracked, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { OrderService } from '../../../core/services/order.service';
 import { ProductService } from '../../../core/services/product.service';
+import { ShiftService } from '../../../core/services/shift.service';
 import { PettyCashService } from '../../../core/services/petty-cash.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { Order, OrderItem, Product } from '../../../shared/interfaces';
+import { detectOrderChanges } from '../../../core/services/order.logic';
 
 @Component({
   selector: 'app-cashier-dashboard',
@@ -44,6 +46,13 @@ import { Order, OrderItem, Product } from '../../../shared/interfaces';
           </div>
         </div>
       </div>
+
+      @if (!soundEnabled()) {
+        <button (click)="enableSound()" class="w-full mb-4 p-3 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 font-bold text-sm flex items-center justify-center gap-2">
+          <span class="material-symbols-rounded">volume_up</span>
+          Toca aquí para activar el sonido de comandas nuevas
+        </button>
+      }
 
       <!-- Action Quick Bar (solo en tickets) -->
       @if (activeTab() === 'tickets') {
@@ -311,8 +320,8 @@ import { Order, OrderItem, Product } from '../../../shared/interfaces';
                 <span class="material-symbols-rounded text-lg">print</span> Imprimir Reporte
               </button>
 
-              <button (click)="closeShift()" class="py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg">
-                <span class="material-symbols-rounded text-lg">delete_history</span> Cerrar y Limpiar Caja
+              <button (click)="closeShift()" [disabled]="isClosingShift()" class="py-3.5 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg disabled:opacity-60">
+                <span class="material-symbols-rounded text-lg">task_alt</span> {{ isClosingShift() ? 'Cerrando turno...' : 'Cerrar y Archivar Turno' }}
               </button>
             </div>
           </div>
@@ -599,6 +608,7 @@ export class CashierDashboardComponent implements OnDestroy {
   public orderService = inject(OrderService);
   public productService = inject(ProductService);
   public pettyCashService = inject(PettyCashService);
+  public shiftService = inject(ShiftService);
   private toast = inject(ToastService);
   private confirmDialog = inject(ConfirmDialogService);
 
@@ -612,25 +622,57 @@ export class CashierDashboardComponent implements OnDestroy {
   // View State
   activeTab = signal<'tickets' | 'reportes' | 'cajaChica' | 'cierre'>('tickets');
 
-  // 🔔 Sonido de notificación para nuevos pedidos
-  private previousOrderCount = 0;
+  // 🔔 Aviso de comandas nuevas o actualizadas por el mesero
+  private seenOrders: Map<string, number> | null = null; // null = aún no se ha cargado la lista inicial
   private orderWatcher = effect(() => {
-    const currentCount = this.orders().length;
-    if (currentCount > this.previousOrderCount && this.previousOrderCount > 0) {
+    const orders = this.orders();
+    if (!this.orderService.ordersLoaded()) return;
+
+    const { nuevas, actualizadas, next } = detectOrderChanges(this.seenOrders ?? new Map(), orders);
+    const isFirstLoad = this.seenOrders === null;
+    this.seenOrders = next;
+    if (isFirstLoad || (nuevas.length === 0 && actualizadas.length === 0)) return;
+
+    const mesas = orders
+      .filter(o => nuevas.includes(o.id) || actualizadas.includes(o.id))
+      .map(o => o.id_mesa === 'para_llevar' ? 'Para llevar' : `Mesa ${o.numero_mesa}`)
+      .join(', ');
+    // untracked: mostrar el toast escribe en otra señal y no debe volver a disparar este efecto
+    untracked(() => {
       this.playNotificationSound();
       this.toast.show({
-        message: '¡Nueva comanda recibida en caja!',
+        message: nuevas.length > 0 ? `🔔 Nueva comanda: ${mesas}` : `🔔 Productos agregados: ${mesas}`,
         type: 'info',
         icon: 'notifications_active',
-        duration: 3000
+        duration: 5000
       });
-    }
-    this.previousOrderCount = currentCount;
+    });
   });
+
+  // Los navegadores bloquean el sonido hasta que el usuario toca la pantalla
+  private audioCtx: AudioContext | null = null;
+  soundEnabled = signal(false);
+
+  enableSound(): void {
+    try {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      this.audioCtx.resume().then(() => this.soundEnabled.set(this.audioCtx?.state === 'running'));
+    } catch (e) {
+      console.warn('No se pudo activar el sonido:', e);
+    }
+  }
+
+  private unlockAudioOnFirstTouch = () => this.enableSound();
+
+  constructor() {
+    document.addEventListener('pointerdown', this.unlockAudioOnFirstTouch, { once: true });
+  }
 
   // Reports Computeds
   todayStats = computed(() => {
-    const history = this.orderService.getOrderHistory();
+    const history = this.shiftService.shiftSales();
     const totalOrders = history.length;
     let totalSales = 0;
     let totalItemsSold = 0;
@@ -644,7 +686,7 @@ export class CashierDashboardComponent implements OnDestroy {
   });
 
   topProducts = computed(() => {
-    const history = this.orderService.getOrderHistory();
+    const history = this.shiftService.shiftSales();
     const productCounts = new Map<string, number>();
 
     for (const order of history) {
@@ -700,7 +742,7 @@ export class CashierDashboardComponent implements OnDestroy {
   today = new Date();
 
   shiftBreakdown = computed(() => {
-    const history = this.orderService.getOrderHistory();
+    const history = this.shiftService.shiftSales();
     let totalEfectivo = 0;
     let totalTransferencia = 0;
     for (const order of history) {
@@ -796,7 +838,8 @@ export class CashierDashboardComponent implements OnDestroy {
 
   private playNotificationSound(): void {
     try {
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const audioCtx = this.audioCtx;
+      if (!audioCtx || audioCtx.state !== 'running') return;
       const oscillator = audioCtx.createOscillator();
       const gainNode = audioCtx.createGain();
       oscillator.connect(gainNode);
@@ -924,29 +967,38 @@ export class CashierDashboardComponent implements OnDestroy {
     printWindow.print();
   }
 
+  isClosingShift = signal(false);
+
   async closeShift(): Promise<void> {
+    if (this.isClosingShift()) return;
+    const pending = this.orders().length;
     const confirmed = await this.confirmDialog.confirm({
-      title: '¿Cerrar Caja y Limpiar Historial?',
-      message: 'ATENCIÓN: Esto imprimirá el reporte del turno y luego BORRARÁ permanentemente las ventas y gastos registrados hoy.',
-      confirmText: 'Sí, Cerrar Caja',
+      title: '¿Cerrar el turno de caja?',
+      message: (pending > 0 ? `Hay ${pending} comanda(s) sin cobrar: seguirán abiertas en el próximo turno. ` : '')
+        + 'Se imprimirá el reporte y el turno quedará archivado. Las ventas NO se borran: el administrador las sigue viendo en sus reportes.',
+      confirmText: 'Sí, cerrar turno',
       cancelText: 'Cancelar',
-      confirmStyle: 'danger',
-      icon: 'warning'
+      confirmStyle: 'primary',
+      icon: 'task_alt'
     });
 
     if (!confirmed) return;
 
     this.printShiftReport();
 
-    const ordersDeleted = await this.orderService.clearOrderHistory();
-    await this.pettyCashService.clearExpenses();
+    this.isClosingShift.set(true);
+    const summary = await this.shiftService.closeShift();
+    this.isClosingShift.set(false);
 
-    if (ordersDeleted) {
-      this.toast.show({ message: 'Caja cerrada y datos del turno reiniciados', type: 'success', icon: 'task_alt', duration: 4000 });
+    if (summary) {
+      this.toast.show({ message: 'Turno cerrado y archivado. La caja arranca en $0.', type: 'success', icon: 'task_alt', duration: 4000 });
     } else {
-      this.toast.show({ message: 'Error al limpiar el historial', type: 'error', icon: 'error' });
+      this.toast.show({ message: 'No se pudo cerrar el turno. Revisa la conexión e intenta de nuevo.', type: 'error', icon: 'error' });
     }
   }
 
-  ngOnDestroy(): void {}
+  ngOnDestroy(): void {
+    document.removeEventListener('pointerdown', this.unlockAudioOnFirstTouch);
+    this.audioCtx?.close();
+  }
 }

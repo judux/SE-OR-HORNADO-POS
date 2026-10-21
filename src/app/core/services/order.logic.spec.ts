@@ -1,6 +1,6 @@
 import {
     addProductToNewLines, changeNewLineQuantity, mergeLines,
-    sumItems, countItems, calculateChange
+    sumItems, countItems, calculateChange, detectOrderChanges
 } from './order.logic';
 import { OrderItem } from '../../shared/interfaces';
 
@@ -64,5 +64,19 @@ describe('order.logic', () => {
     it('calcula el vuelto', () => {
         expect(calculateChange(50000, 37500)).toBe(12500);
         expect(calculateChange(20000, 37500)).toBe(-17500);
+    });
+
+    it('detecta comandas nuevas y actualizadas', () => {
+        const t1 = new Date(1000), t2 = new Date(2000);
+        const first = detectOrderChanges(new Map(), [{ id: 'a', enviado_en: t1 }]);
+        expect(first.nuevas).toEqual(['a']);
+        const second = detectOrderChanges(first.next, [{ id: 'a', enviado_en: t2 }, { id: 'b', enviado_en: t1 }]);
+        expect(second.nuevas).toEqual(['b']);
+        expect(second.actualizadas).toEqual(['a']);
+        const third = detectOrderChanges(second.next, [{ id: 'a', enviado_en: t2 }]);
+        expect(third.nuevas.length + third.actualizadas.length).toBe(0);
+        // Una orden creada por la caja (sin enviado_en) no avisa
+        const fourth = detectOrderChanges(third.next, [{ id: 'a', enviado_en: t2 }, { id: 'venta_directa' }]);
+        expect(fourth.nuevas).toEqual([]);
     });
 });

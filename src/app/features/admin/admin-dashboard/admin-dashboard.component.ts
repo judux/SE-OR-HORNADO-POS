@@ -1,8 +1,12 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { OrderService } from '../../../core/services/order.service';
-import { ToastService } from '../../../shared/components/toast/toast.service';
-import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/confirm-dialog.service';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { Firestore, collection, collectionData, query, orderBy, limit } from '@angular/fire/firestore';
+import { map, switchMap } from 'rxjs';
+import { ShiftService } from '../../../core/services/shift.service';
+import { Order } from '../../../shared/interfaces';
+
+type Periodo = 'hoy' | '7d' | '30d';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -15,9 +19,14 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
           <span class="material-symbols-rounded text-primary-500">dashboard</span>
           Dashboard de Ventas
         </h2>
-        <button (click)="clearHistory()" class="px-4 py-2 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors">
-          <span class="material-symbols-rounded text-[18px]">delete_history</span> Vaciar Historial
-        </button>
+        <div class="flex bg-dark-100 dark:bg-dark-800 rounded-xl p-1 text-sm font-bold">
+          @for (p of periodos; track p.value) {
+            <button (click)="periodo.set(p.value)" class="px-3 py-1.5 rounded-lg transition-all"
+              [class]="periodo() === p.value ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-white shadow-xs' : 'text-dark-500 dark:text-dark-400'">
+              {{ p.label }}
+            </button>
+          }
+        </div>
       </div>
 
       <!-- KPI Cards -->
@@ -27,7 +36,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
             <div class="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/40 text-green-600 dark:text-green-400 flex items-center justify-center">
               <span class="material-symbols-rounded">payments</span>
             </div>
-            <p class="text-xs font-bold text-dark-400 uppercase tracking-wider">Ventas Hoy</p>
+            <p class="text-xs font-bold text-dark-400 uppercase tracking-wider">Ventas {{ periodoLabel() }}</p>
           </div>
           <p class="text-3xl font-black text-dark-800 dark:text-white">$ {{ stats().totalSales | number:'1.0-0' }}</p>
           <p class="text-xs text-dark-400 dark:text-dark-300 mt-1">{{ stats().totalOrders }} órdenes</p>
@@ -126,7 +135,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
             <tbody class="divide-y divide-dark-100 dark:divide-dark-700">
               @for (order of orderHistory().slice(0, 20); track order.id) {
                 <tr class="hover:bg-dark-50 dark:hover:bg-dark-700/50 transition-colors">
-                  <td class="p-4 font-bold text-dark-700 dark:text-dark-300">{{ order.numero_mesa === 0 ? 'Llevar' : 'Mesa ' + order.numero_mesa }}</td>
+                  <td class="p-4 font-bold text-dark-700 dark:text-dark-300">{{ order.id_mesa === 'para_llevar' ? 'Para llevar' : 'Mesa ' + order.numero_mesa }}</td>
                   <td class="p-4 text-dark-600 dark:text-dark-400">{{ order.nombre_mesero }}</td>
                   <td class="p-4 text-dark-600 dark:text-dark-400">{{ order.items.length }} prod.</td>
                   <td class="p-4">
@@ -142,13 +151,80 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
           </table>
         }
       </div>
+
+      <!-- Turnos cerrados (archivados, nunca se borran) -->
+      <div class="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-dark-100 dark:border-dark-700">
+          <h3 class="font-bold text-dark-800 dark:text-white flex items-center gap-2">
+            <span class="material-symbols-rounded text-dark-400 dark:text-dark-500">inventory_2</span>
+            Turnos cerrados
+          </h3>
+        </div>
+        @if (shifts().length === 0) {
+          <div class="p-8 text-center text-dark-400"><p class="font-medium">Aún no se ha cerrado ningún turno</p></div>
+        } @else {
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-dark-50 dark:bg-dark-900 border-b border-dark-100 dark:border-dark-700">
+                <th class="p-4 text-xs font-bold text-dark-500 uppercase">Cierre</th>
+                <th class="p-4 text-xs font-bold text-dark-500 uppercase">Cerró</th>
+                <th class="p-4 text-xs font-bold text-dark-500 uppercase text-right">Ventas</th>
+                <th class="p-4 text-xs font-bold text-dark-500 uppercase text-right">Efectivo esperado</th>
+                <th class="p-4 text-xs font-bold text-dark-500 uppercase text-right">Transferencias</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-dark-100 dark:divide-dark-700">
+              @for (shift of shifts(); track shift.id) {
+                <tr>
+                  <td class="p-4 text-dark-700 dark:text-dark-300">{{ shift.fin | date:'dd/MM HH:mm' }}</td>
+                  <td class="p-4 text-dark-600 dark:text-dark-400">{{ shift.nombre_cerrado_por }}</td>
+                  <td class="p-4 text-right font-bold text-dark-800 dark:text-white">$ {{ shift.total_ventas | number:'1.0-0' }} <span class="text-xs text-dark-400 font-normal">({{ shift.num_ventas }})</span></td>
+                  <td class="p-4 text-right text-dark-700 dark:text-dark-300">$ {{ shift.efectivo_esperado | number:'1.0-0' }}</td>
+                  <td class="p-4 text-right text-dark-700 dark:text-dark-300">$ {{ shift.total_transferencia | number:'1.0-0' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
     </div>
   `
 })
 export class AdminDashboardComponent {
-  private orderService = inject(OrderService);
+  private shiftService = inject(ShiftService);
+  private firestore = inject(Firestore);
 
-  orderHistory = computed(() => this.orderService.getOrderHistory());
+  readonly periodos: { value: Periodo; label: string }[] = [
+    { value: 'hoy', label: 'Hoy' },
+    { value: '7d', label: '7 días' },
+    { value: '30d', label: '30 días' },
+  ];
+  periodo = signal<Periodo>('hoy');
+  periodoLabel = computed(() => this.periodos.find(p => p.value === this.periodo())?.label.toLowerCase() === 'hoy' ? 'hoy' : `últimos ${this.periodos.find(p => p.value === this.periodo())?.label}`);
+
+  // Ventas del periodo elegido (consulta filtrada por fecha: no descarga todo el historial)
+  orderHistory = toSignal(
+    toObservable(this.periodo).pipe(
+      switchMap(p => this.shiftService.salesSince(this.periodStart(p)))
+    ),
+    { initialValue: [] as Order[] }
+  );
+
+  // Últimos turnos archivados
+  shifts = toSignal(
+    collectionData(query(collection(this.firestore, 'shifts'), orderBy('fin', 'desc'), limit(15)), { idField: 'id' }).pipe(
+      map(list => (list as any[]).map(s => ({ ...s, fin: s.fin?.toDate ? s.fin.toDate() : s.fin })))
+    ),
+    { initialValue: [] as any[] }
+  );
+
+  private periodStart(p: Periodo): Date {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    if (p === '7d') d.setDate(d.getDate() - 6);
+    if (p === '30d') d.setDate(d.getDate() - 29);
+    return d;
+  }
 
   stats = computed(() => {
     const history = this.orderHistory();
@@ -169,9 +245,6 @@ export class AdminDashboardComponent {
     return Array.from(counts.entries()).map(([name, quantity]) => ({ name, quantity })).sort((a, b) => b.quantity - a.quantity);
   });
 
-  private confirmDialog = inject(ConfirmDialogService);
-  private toast = inject(ToastService);
-
   maxQuantity = computed(() => {
     const prods = this.allProducts();
     return prods.length > 0 ? prods[0].quantity : 1;
@@ -181,24 +254,4 @@ export class AdminDashboardComponent {
     const prods = this.allProducts();
     return prods.length > 0 ? prods[0] : { name: '', quantity: 0 };
   });
-
-  async clearHistory(): Promise<void> {
-    const confirmed = await this.confirmDialog.confirm({
-      title: '¿Borrar todo el historial de ventas?',
-      message: 'ATENCIÓN ADMINISTRADOR: Se eliminarán permanentemente todas las ventas registradas. Esta acción no se puede deshacer.',
-      confirmText: 'Borrar todo',
-      confirmStyle: 'danger',
-      icon: 'warning'
-    });
-
-    if (!confirmed) return;
-
-    const success = await this.orderService.clearOrderHistory();
-    if (success) {
-      this.toast.show({ message: 'Historial de ventas vaciado correctamente', type: 'success', icon: 'delete_forever' });
-    } else {
-      this.toast.show({ message: 'Error al borrar el historial', type: 'error', icon: 'error' });
-    }
-  }
 }
-

@@ -25,5 +25,6 @@ export interface Order {
     metodo_pago?: 'efectivo' | 'tarjeta' | 'transferencia';
     fecha_creacion: Date;
     fecha_cierre?: Date;
-    actualizado_en?: Date; // última vez que el mesero envió cambios
+    actualizado_en?: Date; // última modificación de la orden
+    enviado_en?: Date; // última vez que el MESERO la envió a caja (dispara el aviso sonoro)
 }

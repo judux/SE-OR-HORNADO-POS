@@ -78,3 +78,25 @@ export function mergeLines(existing: OrderItem[], incoming: OrderItem[]): OrderI
 export function calculateChange(received: number, total: number): number {
     return received - total;
 }
+
+/**
+ * Compara las comandas en caja con las vistas antes (id → hora del último envío del mesero)
+ * para saber cuáles son nuevas y cuáles recibieron productos.
+ */
+export function detectOrderChanges(
+    seen: Map<string, number>,
+    orders: { id: string; enviado_en?: Date }[]
+): { nuevas: string[]; actualizadas: string[]; next: Map<string, number> } {
+    const next = new Map<string, number>();
+    const nuevas: string[] = [];
+    const actualizadas: string[] = [];
+    for (const o of orders) {
+        // Solo cuentan los envíos del mesero (enviado_en); lo que crea o divide la caja no avisa
+        const stamp = o.enviado_en?.getTime() ?? 0;
+        next.set(o.id, stamp);
+        if (stamp === 0) continue;
+        if (!seen.has(o.id)) nuevas.push(o.id);
+        else if (stamp > (seen.get(o.id) ?? 0)) actualizadas.push(o.id);
+    }
+    return { nuevas, actualizadas, next };
+}

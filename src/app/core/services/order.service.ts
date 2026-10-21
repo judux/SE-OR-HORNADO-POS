@@ -1,12 +1,13 @@
 import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
 import {
     Firestore, collection, collectionData, doc,
-    setDoc, Timestamp, writeBatch, runTransaction, DocumentReference
+    setDoc, Timestamp, runTransaction, DocumentReference
 } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
 import { Product, OrderItem, Order } from '../../shared/interfaces';
 import { TableService } from './table.service';
 import { AuthService } from '../auth/auth.service';
+import { toOrder } from './shift.service';
 import {
     addProductToNewLines, changeNewLineQuantity, mergeLines, sumItems, countItems, newLineId
 } from './order.logic';
@@ -21,16 +22,14 @@ export class OrderService implements OnDestroy {
 
     // Lista de órdenes activas desde Firestore (tiempo real)
     private activeOrders = signal<Order[]>([]);
-
-    // Historial de órdenes pagadas desde Firestore (tiempo real)
-    private orderHistory = signal<Order[]>([]);
+    // true cuando llegó la primera respuesta de Firestore (evita avisos falsos al abrir la caja)
+    readonly ordersLoaded = signal(false);
 
     private firestore = inject(Firestore);
     private tableService = inject(TableService);
     private authService = inject(AuthService);
 
     private ordersSubscription: Subscription;
-    private historySubscription: Subscription;
 
     // Señales derivadas (computed)
     readonly currentTable = this.tableId.asReadonly();
@@ -56,32 +55,15 @@ export class OrderService implements OnDestroy {
         const ordersRef = collection(this.firestore, 'orders');
         this.ordersSubscription = collectionData(ordersRef, { idField: 'id' }).subscribe(
             (data) => {
-                const orders = (data as any[]).map(o => ({
-                    ...o,
-                    fecha_creacion: o.fecha_creacion?.toDate ? o.fecha_creacion.toDate() : new Date(o.fecha_creacion),
-                    fecha_cierre: o.fecha_cierre?.toDate ? o.fecha_cierre.toDate() : (o.fecha_cierre ? new Date(o.fecha_cierre) : undefined)
-                })) as Order[];
-                this.activeOrders.set(orders);
+                this.activeOrders.set((data as any[]).map(toOrder));
+                this.ordersLoaded.set(true);
             }
         );
-
-        // Suscripción a historial en tiempo real
-        const historyRef = collection(this.firestore, 'order_history');
-        this.historySubscription = collectionData(historyRef, { idField: 'id' }).subscribe(
-            (data) => {
-                const history = (data as any[]).map(o => ({
-                    ...o,
-                    fecha_creacion: o.fecha_creacion?.toDate ? o.fecha_creacion.toDate() : new Date(o.fecha_creacion),
-                    fecha_cierre: o.fecha_cierre?.toDate ? o.fecha_cierre.toDate() : (o.fecha_cierre ? new Date(o.fecha_cierre) : undefined)
-                })) as Order[];
-                this.orderHistory.set(history);
-            }
-        );
+        // El historial de ventas NO se escucha aquí: lo carga ShiftService solo en caja y admin.
     }
 
     ngOnDestroy(): void {
         this.ordersSubscription?.unsubscribe();
-        this.historySubscription?.unsubscribe();
     }
 
     // Establecer la mesa actual para el pedido
@@ -163,7 +145,8 @@ export class OrderService implements OnDestroy {
                         estado: estadoFinal,
                         subtotal,
                         total: subtotal,
-                        actualizado_en: Timestamp.now()
+                        actualizado_en: Timestamp.now(),
+                        ...(estadoFinal === 'en_caja' ? { enviado_en: Timestamp.now() } : {})
                     });
                     tx.update(tableRef, { estado: 'ocupada', id_orden_actual: orderRef.id });
                     return;
@@ -185,7 +168,8 @@ export class OrderService implements OnDestroy {
                     propina: 0,
                     total: subtotal,
                     fecha_creacion: Timestamp.now(),
-                    actualizado_en: Timestamp.now()
+                    actualizado_en: Timestamp.now(),
+                    ...(estadoFinal === 'en_caja' ? { enviado_en: Timestamp.now() } : {})
                 });
                 tx.update(tableRef, { estado: 'ocupada', id_orden_actual: newOrderRef.id });
             });
@@ -320,11 +304,6 @@ export class OrderService implements OnDestroy {
             console.error('Error al eliminar item de orden:', error);
             return false;
         }
-    }
-
-    // Obtener historial completo para reportes de caja
-    getOrderHistory(): Order[] {
-        return this.orderHistory();
     }
 
     // Obtener TODAS las órdenes activas (para el cajero)
@@ -471,25 +450,6 @@ export class OrderService implements OnDestroy {
         } catch (error) {
             console.error('Error al crear venta directa:', error);
             return null;
-        }
-    }
-
-    // 🗑️ Borrar Todo el Historial (Cierre de Turno / Día)
-    async clearOrderHistory(): Promise<boolean> {
-        const history = this.orderHistory();
-        if (history.length === 0) return true;
-
-        try {
-            const batch = writeBatch(this.firestore);
-            history.forEach(order => {
-                const orderDoc = doc(this.firestore, 'order_history', order.id!);
-                batch.delete(orderDoc);
-            });
-            await batch.commit();
-            return true;
-        } catch (error) {
-            console.error('Error al borrar historial de órdenes:', error);
-            return false;
         }
     }
 }
