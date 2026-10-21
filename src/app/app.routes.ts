@@ -2,19 +2,24 @@ import { Routes } from '@angular/router';
 import { LoginComponent } from './features/auth/login/login.component';
 import { authGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
+import { deviceGuard } from './core/guards/device.guard';
 
 export const routes: Routes = [
     { path: '', redirectTo: '/login', pathMatch: 'full' },
-    { path: 'login', component: LoginComponent },
+    {
+        path: 'activar',
+        loadComponent: () => import('./features/auth/device-setup/device-setup.component').then(m => m.DeviceSetupComponent)
+    },
+    { path: 'login', component: LoginComponent, canActivate: [deviceGuard] },
     {
         path: 'admin',
         loadComponent: () => import('./features/admin/admin-layout/admin-layout.component').then(m => m.AdminLayoutComponent),
-        canActivate: [authGuard, roleGuard('admin')]
+        canActivate: [deviceGuard, authGuard, roleGuard('admin')]
     },
     {
         path: 'mesero',
         loadComponent: () => import('./features/waiter/waiter-layout/waiter-layout.component').then(m => m.WaiterLayoutComponent),
-        canActivate: [authGuard, roleGuard('mesero')],
+        canActivate: [deviceGuard, authGuard, roleGuard('mesero')],
         children: [
             {
                 path: '',
@@ -29,7 +34,7 @@ export const routes: Routes = [
     {
         path: 'cajero',
         loadComponent: () => import('./features/cashier/cashier-layout/cashier-layout.component').then(m => m.CashierLayoutComponent),
-        canActivate: [authGuard, roleGuard('cajero')]
+        canActivate: [deviceGuard, authGuard, roleGuard('cajero')]
     },
     { path: '**', redirectTo: '/login' }
 ];

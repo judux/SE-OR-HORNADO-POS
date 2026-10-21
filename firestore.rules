@@ -1,11 +1,67 @@
 rules_version = '2';
 
+// Reglas para el piloto (plan Spark). Ver docs/plan-maestro.md, tarea T-04a.
+// - Solo los equipos activados con la cuenta de equipos del restaurante pueden leer o escribir.
+// - Las ventas (order_history) y los turnos (shifts) solo se pueden CREAR: nunca editar ni borrar.
+// - Todo lo que no esté listado aquí queda denegado.
+// Limitación conocida: no distingue roles (mesero/cajero/admin). Eso llega con Cloud Functions (Sprint 3).
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Reglas abiertas para desarrollo y primer uso
-    // TODO: Restringir en producción con Firebase Auth
-    match /{document=**} {
-      allow read, write: if true;
+
+    function isDevice() {
+      return request.auth != null
+        && request.auth.token.email in ['equipos@senorhornado.app'];
+    }
+
+    function isNonNegativeNumber(value) {
+      return (value is int || value is float) && value >= 0;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isDevice();
+    }
+
+    match /products/{productId} {
+      allow read, write: if isDevice();
+    }
+
+    match /tables/{tableId} {
+      allow read, write: if isDevice();
+    }
+
+    match /orders/{orderId} {
+      allow read, delete: if isDevice();
+      allow create, update: if isDevice()
+        && request.resource.data.items is list
+        && isNonNegativeNumber(request.resource.data.total);
+    }
+
+    match /order_history/{saleId} {
+      allow read: if isDevice();
+      allow create: if isDevice()
+        && request.resource.data.estado == 'pagada'
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0
+        && isNonNegativeNumber(request.resource.data.total)
+        && request.resource.data.metodo_pago in ['efectivo', 'transferencia'];
+      allow update, delete: if false;
+    }
+
+    match /expenses/{expenseId} {
+      allow read, delete: if isDevice();
+      allow create: if isDevice()
+        && request.resource.data.motivo is string
+        && isNonNegativeNumber(request.resource.data.monto);
+      allow update: if false;
+    }
+
+    match /shifts/{shiftId} {
+      allow read, create: if isDevice();
+      allow update, delete: if false;
+    }
+
+    match /config/{configId} {
+      allow read, write: if isDevice();
     }
   }
 }

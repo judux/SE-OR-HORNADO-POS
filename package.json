@@ -9,7 +9,8 @@
     "test": "ng test",
     "emulators": "firebase emulators:start --project demo-senor-hornado",
     "seed:emu": "node scripts/seed-emulator.mjs",
-    "start:emu": "ng serve --configuration emulator"
+    "start:emu": "ng serve --configuration emulator",
+    "test:rules": "node scripts/test-rules-emulator.mjs"
   },
   "private": true,
   "dependencies": {
