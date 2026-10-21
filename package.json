@@ -10,7 +10,10 @@
     "emulators": "firebase emulators:start --project demo-senor-hornado",
     "seed:emu": "node scripts/seed-emulator.mjs",
     "start:emu": "ng serve --configuration emulator",
-    "test:rules": "node scripts/test-rules-emulator.mjs"
+    "test:rules": "node scripts/test-rules-emulator.mjs",
+    "test:unit": "ng test --watch=false --browsers=ChromeHeadless",
+    "verify": "node scripts/verify.mjs",
+    "deploy": "node scripts/verify.mjs && firebase deploy --only hosting,firestore:rules --project senor-hornado-pos-8412"
   },
   "private": true,
   "dependencies": {

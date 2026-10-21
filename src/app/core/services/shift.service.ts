@@ -65,7 +65,7 @@ export class ShiftService {
     // todo el historial (no se oculta nada). Sin restaurante activo: null.
     readonly turnoInicio = toSignal(
         this.tenant.watch(
-            rid => docData(doc(this.firestore, 'restaurants', rid, 'config', 'turno_actual')).pipe(
+            rid => docData(this.tenant.docOf(rid, 'config', 'turno_actual')).pipe(
                 map((data): Date | null => toDate((data as any)?.inicio) ?? new Date(0))
             ),
             null as Date | null

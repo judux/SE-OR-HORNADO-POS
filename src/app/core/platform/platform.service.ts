@@ -13,6 +13,7 @@ import { Observable, map } from 'rxjs';
 import { Restaurant } from '../../shared/interfaces';
 import { environment } from '../../../environments/environment';
 import { TenantService } from '../tenant/tenant.service';
+import { restaurantCol, restaurantDoc, PLATFORM_COLLECTIONS as PC } from '../tenant/collections';
 
 export interface NewRestaurantInput {
     nombre: string;
@@ -51,7 +52,7 @@ export class PlatformService {
 
     restaurants$(): Observable<Restaurant[]> {
         // Sin orderBy en la consulta: Firestore excluiría restaurantes sin 'creado_en'. Se ordena aquí.
-        return collectionData(collection(this.firestore, 'restaurants'), { idField: 'id' }).pipe(
+        return collectionData(collection(this.firestore, PC.restaurants), { idField: 'id' }).pipe(
             map(list => (list as Restaurant[]).sort((a, b) =>
                 (b.creado_en?.toMillis?.() ?? 0) - (a.creado_en?.toMillis?.() ?? 0)))
         );
@@ -65,8 +66,8 @@ export class PlatformService {
         const cred = await createUserWithEmailAndPassword(this.auth, email.trim(), password);
         const uid = cred.user.uid;
         const batch = writeBatch(this.firestore);
-        batch.set(doc(this.firestore, 'platform_admins', uid), { email: email.trim(), nombre: nombre.trim(), creado_en: Timestamp.now() });
-        batch.set(doc(this.firestore, 'platform', 'owner'), { uid, email: email.trim(), creado_en: Timestamp.now() });
+        batch.set(doc(this.firestore, PC.platformAdmins, uid), { email: email.trim(), nombre: nombre.trim(), creado_en: Timestamp.now() });
+        batch.set(doc(this.firestore, PC.platform, 'owner'), { uid, email: email.trim(), creado_en: Timestamp.now() });
         try {
             await batch.commit();
         } catch (error) {
@@ -77,6 +78,7 @@ export class PlatformService {
         await this.tenant.refresh();
     }
 
+    // 'products' y 'tables' sueltos (sin restaurante) son de la versión anterior: solo se LEEN para copiarlos.
     /** Cantidad de productos y mesas de la versión anterior (de un solo restaurante), para migrarlos. */
     async legacyCounts(): Promise<{ productos: number; mesas: number }> {
         try {
@@ -110,7 +112,7 @@ export class PlatformService {
 
         const batch = writeBatch(this.firestore);
         const now = Timestamp.now();
-        batch.set(doc(this.firestore, 'restaurants', rid), {
+        batch.set(doc(this.firestore, PC.restaurants, rid), {
             nombre,
             estado: 'activo',
             cuenta_email: email,
@@ -118,22 +120,22 @@ export class PlatformService {
             creado_en: now,
             creado_por: this.auth.currentUser?.uid ?? ''
         });
-        batch.set(doc(this.firestore, 'devices', uid), { rid, email, creado_en: now });
-        batch.set(doc(collection(this.firestore, 'restaurants', rid, 'users')), {
+        batch.set(doc(this.firestore, PC.devices, uid), { rid, email, creado_en: now });
+        batch.set(doc(restaurantCol(this.firestore, rid, 'users')), {
             nombre: input.adminNombre.trim(),
             rol: 'admin',
             pin_acceso: input.adminPin,
             activo: true
         });
-        batch.set(doc(this.firestore, 'restaurants', rid, 'config', 'turno_actual'), { inicio: now, abierto_por: 'plataforma' });
+        batch.set(restaurantDoc(this.firestore, rid, 'config', 'turno_actual'), { inicio: now, abierto_por: 'plataforma' });
 
         if (input.copiarLegado) {
             const [products, tables] = await Promise.all([
                 getDocs(collection(this.firestore, 'products')),
                 getDocs(collection(this.firestore, 'tables'))
             ]);
-            products.forEach(p => batch.set(doc(this.firestore, 'restaurants', rid, 'products', p.id), p.data()));
-            tables.forEach(t => batch.set(doc(this.firestore, 'restaurants', rid, 'tables', t.id), {
+            products.forEach(p => batch.set(restaurantDoc(this.firestore, rid, 'products', p.id), p.data()));
+            tables.forEach(t => batch.set(restaurantDoc(this.firestore, rid, 'tables', t.id), {
                 ...t.data(), estado: 'libre', id_orden_actual: null
             }));
         }
@@ -169,19 +171,19 @@ export class PlatformService {
     }
 
     async setEstado(rid: string, estado: Restaurant['estado']): Promise<void> {
-        await updateDoc(doc(this.firestore, 'restaurants', rid), { estado });
+        await updateDoc(doc(this.firestore, PC.restaurants, rid), { estado });
     }
 
     async rename(rid: string, nombre: string): Promise<void> {
         if (!nombre.trim()) throw new PlatformError('El nombre no puede quedar vacío.');
-        await updateDoc(doc(this.firestore, 'restaurants', rid), { nombre: nombre.trim() });
+        await updateDoc(doc(this.firestore, PC.restaurants, rid), { nombre: nombre.trim() });
     }
 
     /** Agrega otro administrador a un restaurante (p. ej. si el dueño olvidó su PIN). */
     async addAdmin(rid: string, nombre: string, pin: string): Promise<void> {
         if (!nombre.trim()) throw new PlatformError('Escribe el nombre del administrador.');
         if (!isValidPin(pin)) throw new PlatformError('El PIN debe tener exactamente 4 dígitos.');
-        const usersRef = collection(this.firestore, 'restaurants', rid, 'users');
+        const usersRef = restaurantCol(this.firestore, rid, 'users');
         const existing = await getDocs(query(usersRef, where('pin_acceso', '==', pin)));
         if (!existing.empty) throw new PlatformError('Ese PIN ya lo usa otra persona en este restaurante.');
         await setDoc(doc(usersRef), { nombre: nombre.trim(), rol: 'admin', pin_acceso: pin, activo: true });

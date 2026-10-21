@@ -7,6 +7,7 @@ import {
 } from '@angular/fire/firestore';
 import { BehaviorSubject, Observable, Subscription, distinctUntilChanged, filter, firstValueFrom, of, switchMap, catchError } from 'rxjs';
 import { Restaurant } from '../../shared/interfaces';
+import { RestaurantCollection, restaurantCol, restaurantDoc, PLATFORM_COLLECTIONS } from './collections';
 
 /**
  * Tipo de cuenta con sesión iniciada en este navegador:
@@ -82,10 +83,10 @@ export class TenantService {
 
         const base = { uid: user.uid, email: user.email };
         try {
-            const platformSnap = await getDoc(doc(this.firestore, 'platform_admins', user.uid));
+            const platformSnap = await getDoc(doc(this.firestore, PLATFORM_COLLECTIONS.platformAdmins, user.uid));
             if (platformSnap.exists()) return { kind: 'platform', ...base };
 
-            const deviceSnap = await getDoc(doc(this.firestore, 'devices', user.uid));
+            const deviceSnap = await getDoc(doc(this.firestore, PLATFORM_COLLECTIONS.devices, user.uid));
             if (!deviceSnap.exists()) return { kind: 'unlinked', ...base };
 
             const rid = deviceSnap.data()['rid'] as string;
@@ -101,7 +102,7 @@ export class TenantService {
     private watchRestaurant(rid: string): Promise<void> {
         return new Promise(resolve => {
             let first = true;
-            this.restaurantSub = docData(doc(this.firestore, 'restaurants', rid)).pipe(
+            this.restaurantSub = docData(doc(this.firestore, PLATFORM_COLLECTIONS.restaurants, rid)).pipe(
                 catchError(() => of(undefined))
             ).subscribe(data => {
                 this.restaurant.set(data ? ({ id: rid, ...(data as any) } as Restaurant) : null);
@@ -127,15 +128,24 @@ export class TenantService {
         return rid;
     }
 
-    col(name: string): CollectionReference {
-        return collection(this.firestore, 'restaurants', this.requireRid(), name);
+    col(name: RestaurantCollection): CollectionReference {
+        return restaurantCol(this.firestore, this.requireRid(), name);
     }
 
-    docRef(name: string, id: string): DocumentReference {
-        return doc(this.firestore, 'restaurants', this.requireRid(), name, id);
+    /** Para listeners con el rid que entrega watch(). */
+    colOf(rid: string, name: RestaurantCollection): CollectionReference {
+        return restaurantCol(this.firestore, rid, name);
     }
 
-    newDocRef(name: string): DocumentReference {
+    docOf(rid: string, name: RestaurantCollection, id: string): DocumentReference {
+        return restaurantDoc(this.firestore, rid, name, id);
+    }
+
+    docRef(name: RestaurantCollection, id: string): DocumentReference {
+        return restaurantDoc(this.firestore, this.requireRid(), name, id);
+    }
+
+    newDocRef(name: RestaurantCollection): DocumentReference {
         return doc(this.col(name));
     }
 

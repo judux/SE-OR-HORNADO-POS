@@ -62,7 +62,7 @@ export class OrderService implements OnDestroy {
         // Suscripción a órdenes activas en tiempo real
         // Solo escucha las órdenes del restaurante activo de este equipo
         this.ordersSubscription = this.tenant.watch(
-            rid => collectionData(collection(this.firestore, 'restaurants', rid, 'orders'), { idField: 'id' }),
+            rid => collectionData(this.tenant.colOf(rid, 'orders'), { idField: 'id' }),
             [] as any[]
         ).subscribe(
             (data) => {

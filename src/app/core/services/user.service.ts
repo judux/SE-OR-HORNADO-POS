@@ -21,7 +21,7 @@ export class UserService implements OnDestroy {
     constructor() {
         // Solo escucha los datos del restaurante activo de este equipo
         this.subscription = this.tenant.watch(
-            rid => collectionData(collection(this.firestore, 'restaurants', rid, 'users'), { idField: 'id' }),
+            rid => collectionData(this.tenant.colOf(rid, 'users'), { idField: 'id' }),
             [] as any[]
         ).subscribe(
             (data) => {

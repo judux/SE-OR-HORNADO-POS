@@ -215,7 +215,7 @@ export class AdminDashboardComponent {
   // Últimos turnos archivados
   shifts = toSignal(
     this.tenant.watch(
-      rid => collectionData(query(collection(this.firestore, 'restaurants', rid, 'shifts'), orderBy('fin', 'desc'), limit(15)), { idField: 'id' }).pipe(
+      rid => collectionData(query(this.tenant.colOf(rid, 'shifts'), orderBy('fin', 'desc'), limit(15)), { idField: 'id' }).pipe(
         map(list => (list as any[]).map(s => ({ ...s, fin: s.fin?.toDate ? s.fin.toDate() : s.fin })))
       ),
       [] as any[]

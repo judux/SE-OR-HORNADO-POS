@@ -119,6 +119,20 @@ check('Dueño agrega un administrador a A', await put(`restaurants/${A}/users/ad
 check('Dueño lee las ventas de A', await get(`restaurants/${A}/order_history/v1`, owner.token), false);
 check('Dueño lee las órdenes de A', await get(`restaurants/${A}/orders`, owner.token), false);
 
+console.log('\n— Cada colección de restaurante registrada en collections.ts está aislada —');
+// Si se agrega una colección a RESTAURANT_COLLECTIONS sin su regla (o con una regla que deja ver a
+// otros restaurantes), esta sección falla y avisa antes de desplegar.
+const { readFileSync } = await import('node:fs');
+const registry = readFileSync(new URL('../src/app/core/tenant/collections.ts', import.meta.url), 'utf8');
+const listBlock = registry.match(/RESTAURANT_COLLECTIONS = \[([\s\S]*?)\] as const/)?.[1] ?? '';
+const registered = [...listBlock.matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
+if (registered.length === 0) { console.log('❌ No se pudo leer RESTAURANT_COLLECTIONS'); failures++; }
+for (const col of registered) {
+    check(`[${col}] su equipo puede listarla`, await get(`restaurants/${A}/${col}`, devA.token), true);
+    check(`[${col}] el equipo de otro restaurante NO`, await get(`restaurants/${A}/${col}`, devB.token), false);
+    check(`[${col}] sin sesión NO`, await get(`restaurants/${A}/${col}`, null), false);
+}
+
 console.log('\n— Versión anterior (colecciones sueltas) —');
 check('Dueño lee el menú anterior', await get('products', owner.token), true);
 check('Equipo A lee el menú anterior', await get('products', devA.token), false);
