@@ -86,7 +86,7 @@ import { Order, OrderItem, Product } from '../../../shared/interfaces';
                     <div class="flex justify-between items-start mb-3">
                       <div>
                         <span class="inline-block px-3 py-1 bg-dark-900 text-white dark:bg-white dark:text-dark-900 rounded-full text-xs font-black uppercase tracking-wider mb-1.5 shadow-xs">
-                          Mesa {{ order.numero_mesa }}
+                          {{ order.id_mesa === 'para_llevar' ? 'Para llevar' : 'Mesa ' + order.numero_mesa }}
                         </span>
                         <p class="text-[11px] text-dark-400 font-medium truncate max-w-[120px] flex items-center gap-1">
                           <span class="material-symbols-rounded text-xs">person</span> {{ order.nombre_mesero }}
@@ -331,7 +331,7 @@ import { Order, OrderItem, Product } from '../../../shared/interfaces';
             <div class="px-6 py-4 bg-dark-900 text-white flex justify-between items-center shrink-0">
               <div>
                 <h3 class="text-xl font-extrabold tracking-tight">Cobrar Cuenta</h3>
-                <p class="text-xs text-dark-300 font-medium">Mesa {{ selectedOrder()?.numero_mesa }} · {{ selectedOrder()?.nombre_mesero }}</p>
+                <p class="text-xs text-dark-300 font-medium">{{ selectedOrder()?.id_mesa === 'para_llevar' ? 'Para llevar' : 'Mesa ' + selectedOrder()?.numero_mesa }} · {{ selectedOrder()?.nombre_mesero }}</p>
               </div>
               <button (click)="closePaymentModal()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors">
                 <span class="material-symbols-rounded text-lg">close</span>
@@ -429,10 +429,15 @@ import { Order, OrderItem, Product } from '../../../shared/interfaces';
 
               <button
                 (click)="confirmPayment()"
-                class="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-base transition-all active:scale-95 shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+                [disabled]="isPaying()"
+                class="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-base transition-all active:scale-95 shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 disabled:opacity-60 disabled:active:scale-100"
               >
-                <span class="material-symbols-rounded">check_circle</span>
-                Confirmar Cobro Exitoso
+                @if (isPaying()) {
+                  <span>Procesando cobro...</span>
+                } @else {
+                  <span class="material-symbols-rounded">check_circle</span>
+                  Confirmar Cobro Exitoso
+                }
               </button>
             </div>
           </div>
@@ -495,16 +500,16 @@ import { Order, OrderItem, Product } from '../../../shared/interfaces';
                 <div class="grid grid-cols-2 gap-2">
                   @for (order of orders(); track order.id) {
                     <button (click)="selectOrderForSplit(order)" class="py-4 rounded-2xl border-2 border-dark-100 dark:border-dark-700 font-bold text-dark-700 dark:text-dark-200 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-all text-xs">
-                      Mesa {{ order.numero_mesa }}
+                      {{ order.id_mesa === 'para_llevar' ? 'Para llevar' : 'Mesa ' + order.numero_mesa }} · $ {{ order.subtotal | number:'1.0-0' }}
                     </button>
                   }
                 </div>
               } @else {
                 <div class="space-y-2">
-                  @for (item of splitOrderItems(); track $index; let idx = $index) {
-                    <button (click)="toggleSplitItem(idx)"
+                  @for (item of splitOrderItems(); track trackLine($index, item)) {
+                    <button (click)="toggleSplitItem(item.line_id)"
                       class="w-full p-3 rounded-2xl border-2 text-left flex items-center justify-between transition-all"
-                      [class]="splitItemSelection().includes(idx) ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/60' : 'border-dark-100 dark:border-dark-700 hover:border-dark-200'">
+                      [class]="item.line_id && splitItemSelection().includes(item.line_id) ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/60' : 'border-dark-100 dark:border-dark-700 hover:border-dark-200'">
                       <div>
                         <p class="font-bold text-xs text-dark-900 dark:text-white">{{ item.cantidad }}x {{ item.nombre_producto }}</p>
                         @if (item.notas) { <p class="text-[11px] text-dark-400">{{ item.notas }}</p> }
@@ -674,8 +679,15 @@ export class CashierDashboardComponent implements OnDestroy {
   // Modal State - Dividir Cuenta
   showSplitModal = signal<boolean>(false);
   splitOrderId = signal<string | null>(null);
-  splitOrderItems = signal<any[]>([]);
-  splitItemSelection = signal<number[]>([]);
+  splitOrderItems = computed<OrderItem[]>(() => {
+    const id = this.splitOrderId();
+    return id ? (this.orderService.getAllActiveOrders().find(o => o.id === id)?.items ?? []) : [];
+  });
+  splitItemSelection = signal<string[]>([]);
+
+  // Bloqueos contra doble toque en operaciones de dinero
+  isPaying = signal(false);
+  isProcessing = signal(false);
 
   // Modal State - Venta Directa
   showDirectSaleModal = signal<boolean>(false);
@@ -756,15 +768,17 @@ export class CashierDashboardComponent implements OnDestroy {
 
   async confirmPayment(): Promise<void> {
     const order = this.selectedOrder();
-    if (order) {
+    if (order && !this.isPaying()) {
+      this.isPaying.set(true);
       const success = await this.orderService.closeOrder(
         order.id,
         this.paymentMethod()
       );
+      this.isPaying.set(false);
 
       if (success) {
         this.toast.show({
-          message: `Mesa ${order.numero_mesa} cobrada exitosamente`,
+          message: order.id_mesa === 'para_llevar' ? 'Venta para llevar cobrada' : `Mesa ${order.numero_mesa} cobrada exitosamente`,
           type: 'success',
           icon: 'task_alt',
           duration: 3000
@@ -806,41 +820,52 @@ export class CashierDashboardComponent implements OnDestroy {
   }
 
   async confirmMerge(): Promise<void> {
-    if (this.mergeSelection().length < 2) return;
+    if (this.mergeSelection().length < 2 || this.isProcessing()) return;
+    this.isProcessing.set(true);
     const success = await this.orderService.mergeTables(this.mergeSelection());
+    this.isProcessing.set(false);
     if (success) {
       this.toast.show({ message: '¡Mesas unidas exitosamente!', type: 'success', icon: 'link' });
       this.mergeSelection.set([]);
       this.showMergeModal.set(false);
+    } else {
+      this.toast.show({ message: 'No se pudieron unir las mesas. Intenta de nuevo.', type: 'error', icon: 'error' });
     }
   }
 
   openSplitModal(): void {
     this.splitOrderId.set(null);
-    this.splitOrderItems.set([]);
     this.splitItemSelection.set([]);
     this.showSplitModal.set(true);
   }
 
   selectOrderForSplit(order: Order): void {
     this.splitOrderId.set(order.id);
-    this.splitOrderItems.set([...order.items]);
     this.splitItemSelection.set([]);
   }
 
-  toggleSplitItem(index: number): void {
+  toggleSplitItem(lineId: string | undefined): void {
+    if (!lineId) return;
     this.splitItemSelection.update(sel =>
-      sel.includes(index) ? sel.filter(i => i !== index) : [...sel, index]
+      sel.includes(lineId) ? sel.filter(id => id !== lineId) : [...sel, lineId]
     );
   }
 
   async confirmSplit(): Promise<void> {
     const orderId = this.splitOrderId();
-    if (!orderId || this.splitItemSelection().length === 0) return;
+    if (!orderId || this.splitItemSelection().length === 0 || this.isProcessing()) return;
+    if (this.splitItemSelection().length >= this.splitOrderItems().length) {
+      this.toast.show({ message: 'Deja al menos un producto en la cuenta original', type: 'warning', icon: 'warning' });
+      return;
+    }
+    this.isProcessing.set(true);
     const result = await this.orderService.splitOrder(orderId, this.splitItemSelection());
+    this.isProcessing.set(false);
     if (result) {
       this.toast.show({ message: 'Cuenta dividida exitosamente', type: 'success', icon: 'call_split' });
       this.showSplitModal.set(false);
+    } else {
+      this.toast.show({ message: 'No se pudo dividir la cuenta. Intenta de nuevo.', type: 'error', icon: 'error' });
     }
   }
 
@@ -861,8 +886,14 @@ export class CashierDashboardComponent implements OnDestroy {
   }
 
   async confirmDirectSale(): Promise<void> {
-    if (this.directSaleItems().length === 0) return;
-    await this.orderService.createDirectSaleOrder(this.directSaleItems());
+    if (this.directSaleItems().length === 0 || this.isProcessing()) return;
+    this.isProcessing.set(true);
+    const orderId = await this.orderService.createDirectSaleOrder(this.directSaleItems());
+    this.isProcessing.set(false);
+    if (!orderId) {
+      this.toast.show({ message: 'No se pudo registrar la venta directa. Intenta de nuevo.', type: 'error', icon: 'error' });
+      return;
+    }
     this.toast.show({ message: 'Venta directa registrada', type: 'success', icon: 'shopping_bag' });
     this.directSaleItems.set([]);
     this.showDirectSaleModal.set(false);

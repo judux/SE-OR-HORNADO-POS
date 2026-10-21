@@ -1,14 +1,14 @@
 import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
 import {
     Firestore, collection, collectionData, doc,
-    addDoc, updateDoc, deleteDoc, Timestamp, writeBatch, runTransaction, DocumentReference
+    setDoc, Timestamp, writeBatch, runTransaction, DocumentReference
 } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
 import { Product, OrderItem, Order } from '../../shared/interfaces';
 import { TableService } from './table.service';
 import { AuthService } from '../auth/auth.service';
 import {
-    addProductToNewLines, changeNewLineQuantity, mergeLines, sumItems, countItems
+    addProductToNewLines, changeNewLineQuantity, mergeLines, sumItems, countItems, newLineId
 } from './order.logic';
 
 @Injectable({
@@ -222,39 +222,69 @@ export class OrderService implements OnDestroy {
         return this.activeOrders().find(o => o.id_mesa === tableId);
     }
 
-    // Cerrar orden y procesar pago
+    /**
+     * Estado de la mesa al quitarle una orden: si tiene otras órdenes activas
+     * (p. ej. tras dividir la cuenta) sigue ocupada; si no, queda libre.
+     */
+    private tableStateAfterRemoving(tableId: string, removedOrderIds: string[]): { estado: 'libre' | 'ocupada'; id_orden_actual: string | null } {
+        const others = this.activeOrders().filter(o => o.id_mesa === tableId && !removedOrderIds.includes(o.id));
+        return others.length > 0
+            ? { estado: 'ocupada', id_orden_actual: others[0].id }
+            : { estado: 'libre', id_orden_actual: null };
+    }
+
+    /**
+     * Cierra la orden y registra la venta en UNA transacción.
+     * La venta se guarda en order_history con el MISMO id de la orden: si el cajero toca dos veces
+     * o la red reintenta, no puede quedar una venta duplicada.
+     * El total se recalcula a partir de las líneas guardadas en el servidor.
+     */
     async closeOrder(orderId: string, method: 'efectivo' | 'transferencia'): Promise<boolean> {
-        const order = this.activeOrders().find(o => o.id === orderId);
-        if (!order) return false;
+        const orderRef = doc(this.firestore, 'orders', orderId);
+        const historyRef = doc(this.firestore, 'order_history', orderId);
 
         try {
-            // Crear el documento en order_history
-            const closedOrder = {
-                id_mesa: order.id_mesa,
-                numero_mesa: order.numero_mesa,
-                id_mesero: order.id_mesero,
-                nombre_mesero: order.nombre_mesero,
-                items: order.items,
-                estado: 'pagada' as const,
-                codigo_pago: order.codigo_pago,
-                subtotal: order.subtotal,
-                propina: 0,
-                total: order.subtotal,
-                metodo_pago: method,
-                fecha_creacion: order.fecha_creacion instanceof Date ? Timestamp.fromDate(order.fecha_creacion) : order.fecha_creacion,
-                fecha_cierre: Timestamp.now()
-            };
+            await runTransaction(this.firestore, async (tx) => {
+                const orderSnap = await tx.get(orderRef);
+                const historySnap = await tx.get(historyRef);
 
-            const historyRef = collection(this.firestore, 'order_history');
-            await addDoc(historyRef, closedOrder);
+                if (historySnap.exists()) {
+                    // Ya se cobró antes: solo asegurar que no quede como activa
+                    if (orderSnap.exists()) tx.delete(orderRef);
+                    return;
+                }
+                if (!orderSnap.exists()) throw new Error('La orden ya no existe');
 
-            // Eliminar de órdenes activas
-            const orderDoc = doc(this.firestore, 'orders', orderId);
-            await deleteDoc(orderDoc);
+                const order = orderSnap.data();
+                const items = (order['items'] ?? []) as OrderItem[];
+                if (items.length === 0) throw new Error('La orden no tiene productos');
+                const total = sumItems(items);
 
-            // Liberar la mesa
-            await this.tableService.updateTableStatus(order.id_mesa, 'libre');
+                const tableId = order['id_mesa'] as string;
+                const tableRef = tableId && tableId !== 'para_llevar' ? doc(this.firestore, 'tables', tableId) : null;
+                const tableSnap = tableRef ? await tx.get(tableRef) : null;
 
+                tx.set(historyRef, {
+                    id_mesa: tableId,
+                    numero_mesa: order['numero_mesa'] ?? 0,
+                    id_mesero: order['id_mesero'] ?? '',
+                    nombre_mesero: order['nombre_mesero'] ?? '',
+                    items,
+                    estado: 'pagada',
+                    codigo_pago: order['codigo_pago'] ?? '',
+                    subtotal: total,
+                    propina: 0,
+                    total,
+                    metodo_pago: method,
+                    cobrado_por: this.authService.user()?.id ?? 'desconocido',
+                    fecha_creacion: order['fecha_creacion'] ?? Timestamp.now(),
+                    fecha_cierre: Timestamp.now()
+                });
+                tx.delete(orderRef);
+                if (tableRef && tableSnap?.exists()) {
+                    tx.update(tableRef, this.tableStateAfterRemoving(tableId, [orderId]));
+                }
+            });
             return true;
         } catch (error) {
             console.error('Error al cerrar orden:', error);
@@ -302,7 +332,7 @@ export class OrderService implements OnDestroy {
         return this.activeOrders();
     });
 
-    // 🔗 Unir Mesas — Fusionar órdenes de 2+ mesas en una cuenta unificada
+    // 🔗 Unir Mesas — Fusionar órdenes de 2+ mesas en una cuenta unificada (una sola transacción)
     async mergeTables(tableIds: string[]): Promise<boolean> {
         if (tableIds.length < 2) return false;
 
@@ -311,27 +341,41 @@ export class OrderService implements OnDestroy {
             .filter((o): o is Order => o !== undefined);
 
         if (ordersToMerge.length < 2) return false;
-
-        const primaryOrder = ordersToMerge[0];
-        const mergedItems = ordersToMerge.flatMap(o => o.items);
-        const mergedSubtotal = mergedItems.reduce((sum, item) => sum + (item.precio_unitario * item.cantidad), 0);
+        const primary = ordersToMerge[0];
+        const secondaries = ordersToMerge.slice(1);
 
         try {
-            // Actualizar la orden principal con todos los items
-            const primaryDoc = doc(this.firestore, 'orders', primaryOrder.id);
-            await updateDoc(primaryDoc, {
-                items: mergedItems,
-                subtotal: mergedSubtotal,
-                total: mergedSubtotal
+            await runTransaction(this.firestore, async (tx) => {
+                // Lecturas primero (regla de las transacciones)
+                const allItems: OrderItem[] = [];
+                for (const o of ordersToMerge) {
+                    const snap = await tx.get(doc(this.firestore, 'orders', o.id));
+                    if (!snap.exists()) throw new Error('Una de las órdenes ya no existe');
+                    allItems.push(...((snap.data()['items'] ?? []) as OrderItem[]));
+                }
+                const secondaryTableExists: boolean[] = [];
+                for (const o of secondaries) {
+                    secondaryTableExists.push((await tx.get(doc(this.firestore, 'tables', o.id_mesa))).exists());
+                }
+
+                const mergedItems = mergeLines([], allItems);
+                const mergedSubtotal = sumItems(mergedItems);
+
+                tx.update(doc(this.firestore, 'orders', primary.id), {
+                    items: mergedItems,
+                    subtotal: mergedSubtotal,
+                    total: mergedSubtotal,
+                    mesas_unidas: ordersToMerge.map(o => o.numero_mesa),
+                    actualizado_en: Timestamp.now()
+                });
+
+                secondaries.forEach((o, i) => {
+                    tx.delete(doc(this.firestore, 'orders', o.id));
+                    if (secondaryTableExists[i]) {
+                        tx.update(doc(this.firestore, 'tables', o.id_mesa), this.tableStateAfterRemoving(o.id_mesa, [o.id]));
+                    }
+                });
             });
-
-            // Eliminar las órdenes secundarias y liberar sus mesas
-            for (const order of ordersToMerge.slice(1)) {
-                const orderDoc = doc(this.firestore, 'orders', order.id);
-                await deleteDoc(orderDoc);
-                await this.tableService.updateTableStatus(order.id_mesa, 'libre');
-            }
-
             return true;
         } catch (error) {
             console.error('Error al fusionar mesas:', error);
@@ -339,56 +383,51 @@ export class OrderService implements OnDestroy {
         }
     }
 
-    // ✂️ Dividir Cuenta — Extraer items seleccionados a una nueva orden parcial
-    async splitOrder(orderId: string, selectedItemIndices: number[]): Promise<Order | null> {
-        const order = this.activeOrders().find(o => o.id === orderId);
-        if (!order || selectedItemIndices.length === 0) return null;
-
-        const splitItems = selectedItemIndices
-            .sort((a, b) => b - a)
-            .map(i => order.items[i])
-            .filter(Boolean);
-
-        if (splitItems.length === 0) return null;
-
-        const remainingItems = order.items.filter((_, i) => !selectedItemIndices.includes(i));
-        if (remainingItems.length === 0) return null;
-
-        const splitSubtotal = splitItems.reduce((sum, item) => sum + (item.precio_unitario * item.cantidad), 0);
-        const remainingSubtotal = remainingItems.reduce((sum, item) => sum + (item.precio_unitario * item.cantidad), 0);
+    // ✂️ Dividir Cuenta — Mover las líneas elegidas (por line_id) a una nueva orden de la misma mesa
+    async splitOrder(orderId: string, lineIds: string[]): Promise<string | null> {
+        if (lineIds.length === 0) return null;
+        const orderRef = doc(this.firestore, 'orders', orderId);
+        const newOrderRef = doc(collection(this.firestore, 'orders'));
 
         try {
-            // Crear la orden parcial
-            const splitOrderData = {
-                id_mesa: order.id_mesa,
-                numero_mesa: order.numero_mesa,
-                id_mesero: order.id_mesero,
-                nombre_mesero: order.nombre_mesero,
-                items: splitItems,
-                estado: 'en_caja' as const,
-                codigo_pago: this.generatePaymentCode(),
-                subtotal: splitSubtotal,
-                propina: 0,
-                total: splitSubtotal,
-                fecha_creacion: order.fecha_creacion instanceof Date ? Timestamp.fromDate(order.fecha_creacion) : order.fecha_creacion
-            };
+            await runTransaction(this.firestore, async (tx) => {
+                const snap = await tx.get(orderRef);
+                if (!snap.exists()) throw new Error('La orden ya no existe');
+                const order = snap.data();
+                const items = (order['items'] ?? []) as OrderItem[];
 
-            const ordersRef = collection(this.firestore, 'orders');
-            const newDocRef = await addDoc(ordersRef, splitOrderData);
+                const isSelected = (i: OrderItem) => !!i.line_id && lineIds.includes(i.line_id);
+                const splitItems = items.filter(isSelected);
+                const remainingItems = items.filter(i => !isSelected(i));
+                if (splitItems.length === 0) throw new Error('No se encontraron las líneas a dividir');
+                if (remainingItems.length === 0) throw new Error('Debe quedar al menos un producto en la cuenta original');
 
-            // Actualizar la orden original
-            const originalDoc = doc(this.firestore, 'orders', orderId);
-            await updateDoc(originalDoc, {
-                items: remainingItems,
-                subtotal: remainingSubtotal,
-                total: remainingSubtotal
+                const splitSubtotal = sumItems(splitItems);
+                const remainingSubtotal = sumItems(remainingItems);
+
+                tx.set(newOrderRef, {
+                    id_mesa: order['id_mesa'],
+                    numero_mesa: order['numero_mesa'],
+                    id_mesero: order['id_mesero'],
+                    nombre_mesero: order['nombre_mesero'],
+                    items: splitItems,
+                    estado: 'en_caja',
+                    codigo_pago: this.generatePaymentCode(),
+                    subtotal: splitSubtotal,
+                    propina: 0,
+                    total: splitSubtotal,
+                    dividida_de: orderId,
+                    fecha_creacion: order['fecha_creacion'] ?? Timestamp.now(),
+                    actualizado_en: Timestamp.now()
+                });
+                tx.update(orderRef, {
+                    items: remainingItems,
+                    subtotal: remainingSubtotal,
+                    total: remainingSubtotal,
+                    actualizado_en: Timestamp.now()
+                });
             });
-
-            return {
-                ...splitOrderData,
-                id: newDocRef.id,
-                fecha_creacion: order.fecha_creacion
-            } as Order;
+            return newOrderRef.id;
         } catch (error) {
             console.error('Error al dividir orden:', error);
             return null;
@@ -396,41 +435,39 @@ export class OrderService implements OnDestroy {
     }
 
     // 🛍️ Venta Directa (Para Llevar) — Sin mesa ni mesero asignado
-    async createDirectSaleOrder(items: { product_id: string; nombre: string; precio: number; cantidad: number; notas?: string }[]): Promise<Order | null> {
-        const orderItems = items.map(item => ({
+    async createDirectSaleOrder(items: { product_id: string; nombre: string; precio: number; cantidad: number; notas?: string }[]): Promise<string | null> {
+        if (items.length === 0) return null;
+        const currentUser = this.authService.user();
+        const orderItems: OrderItem[] = items.map(item => ({
+            line_id: newLineId(),
             id_producto: item.product_id,
             nombre_producto: item.nombre,
             cantidad: item.cantidad,
             precio_unitario: item.precio,
             notas: item.notas || '',
-            enviado: true
+            enviado: true,
+            agregado_por: currentUser?.id ?? 'caja',
+            agregado_en: Date.now()
         }));
-
-        const subtotal = orderItems.reduce((sum, item) => sum + (item.precio_unitario * item.cantidad), 0);
-
-        const directOrderData = {
-            id_mesa: 'para_llevar',
-            numero_mesa: 0,
-            id_mesero: 'caja',
-            nombre_mesero: 'Venta Directa',
-            items: orderItems,
-            estado: 'en_caja' as const,
-            codigo_pago: this.generatePaymentCode(),
-            subtotal,
-            propina: 0,
-            total: subtotal,
-            fecha_creacion: Timestamp.now()
-        };
+        const subtotal = sumItems(orderItems);
+        const orderRef = doc(collection(this.firestore, 'orders'));
 
         try {
-            const ordersRef = collection(this.firestore, 'orders');
-            const docRef = await addDoc(ordersRef, directOrderData);
-
-            return {
-                ...directOrderData,
-                id: docRef.id,
-                fecha_creacion: new Date()
-            } as Order;
+            await setDoc(orderRef, {
+                id_mesa: 'para_llevar',
+                numero_mesa: 0,
+                id_mesero: 'caja',
+                nombre_mesero: 'Venta Directa',
+                items: orderItems,
+                estado: 'en_caja',
+                codigo_pago: this.generatePaymentCode(),
+                subtotal,
+                propina: 0,
+                total: subtotal,
+                fecha_creacion: Timestamp.now(),
+                actualizado_en: Timestamp.now()
+            });
+            return orderRef.id;
         } catch (error) {
             console.error('Error al crear venta directa:', error);
             return null;
