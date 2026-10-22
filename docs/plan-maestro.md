@@ -35,10 +35,10 @@ Cada etapa tiene una condición para darla por terminada. No se pasa a la siguie
 
 **Etapa 1: piloto real con Señor Hornado** ← *estamos aquí*
 - **Tareas:**
-  1. Unir la rama `piloto-sabado` a `main`.
+  1. ~~Unir la rama `piloto-sabado` a `main`.~~ ✅ Hecho el 21 de octubre (local; falta subirlo a GitHub cuando el dueño lo pida).
   2. Cargar el menú con los precios reales, las mesas y el personal con PINs únicos. El dueño revisa los precios en pantalla.
   3. Vincular cada celular con el enlace del restaurante e instalar la app.
-  4. Ensayo general con el guion P-01 a P-21 en los equipos reales, incluido medir la señal en cada terraza.
+  4. Ensayo general con el guion P-01 a P-29 en los equipos reales, incluido medir la señal en cada terraza.
   5. Operar un día real con el respaldo en papel a mano (plan de respaldo en la sección 2.5) y anotar cada incidencia: hora, quién, qué pasó y qué se hizo.
 - **Termina cuando:** pasaron P-01, P-03, P-04, P-05, P-07, P-09, P-10, P-17 y P-21, y hubo al menos un turno completo operado con la app, con su registro de incidencias.
 
