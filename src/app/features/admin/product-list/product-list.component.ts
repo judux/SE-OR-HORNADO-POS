@@ -49,11 +49,11 @@ import { Product } from '../../../shared/interfaces';
       </div>
 
       <!-- Lista de productos -->
-      <div class="grid gap-3">
+      <div class="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         @for (product of filteredProducts(); track product.id) {
-          <div class="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-5 flex items-center justify-between
+          <div class="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-4 sm:p-5 flex items-center justify-between gap-3
                       hover:shadow-md transition-shadow duration-200">
-            <div class="flex-1">
+            <div class="flex-1 min-w-0">
               <div class="flex items-center gap-3 mb-1">
                 <h3 class="font-semibold text-dark-800 dark:text-gray-100">{{ product.nombre }}</h3>
                 @if (!product.disponible) {
@@ -63,17 +63,17 @@ import { Product } from '../../../shared/interfaces';
                 }
               </div>
               <p class="text-dark-400 dark:text-dark-300 text-sm">{{ product.descripcion || 'Sin descripción' }}</p>
-              <div class="flex items-center gap-3 mt-2">
-                <span class="text-lg font-bold text-dark-800 dark:text-white">
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                <span class="text-lg font-bold text-dark-800 dark:text-white whitespace-nowrap">
                   $ {{ product.precio | number:'1.0-0' }}
                 </span>
-                <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-dark-100 dark:bg-dark-700 text-dark-500 dark:text-dark-300">
+                <span class="whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium bg-dark-100 dark:bg-dark-700 text-dark-500 dark:text-dark-300">
                   {{ productService.getCategoryLabel(product.categoria) }}
                 </span>
               </div>
             </div>
 
-            <div class="flex items-center gap-2 ml-4">
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0">
               <!-- Toggle disponible -->
               <button
                 (click)="productService.toggleDisponible(product.id)"

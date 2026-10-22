@@ -11,44 +11,17 @@ import { Order, OrderItem, Product } from '../../../shared/interfaces';
 import { detectOrderChanges } from '../../../core/services/order.logic';
 import { ConnectionService, TimeoutError } from '../../../core/services/connection.service';
 import { TenantService } from '../../../core/tenant/tenant.service';
+import { TabBarComponent, TabItem } from '../../../shared/components/tab-bar/tab-bar.component';
 
 @Component({
   selector: 'app-cashier-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TabBarComponent],
   template: `
-    <div class="h-full p-4 sm:p-6 pb-safe bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col max-w-7xl mx-auto w-full">
-      <!-- Header de Control de Caja -->
-      <div class="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 bg-white/80 dark:bg-dark-800/80 backdrop-blur-xl p-5 rounded-3xl shadow-xs border border-dark-100 dark:border-dark-700/60">
-        <div class="flex items-center gap-3.5">
-          <div class="w-11 h-11 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center shrink-0 border border-amber-500/20">
-            <span class="material-symbols-rounded text-2xl">point_of_sale</span>
-          </div>
-          <div>
-            <h2 class="text-xl sm:text-2xl font-black text-dark-900 dark:text-white tracking-tight">Gestión de Caja</h2>
-            <p class="text-dark-400 dark:text-dark-400 text-xs font-medium mt-0.5">Control de comandas, cobros y caja chica</p>
-          </div>
-        </div>
-        
-        <div class="flex flex-col sm:flex-row items-end sm:items-center gap-3">
-          <!-- Segmented Tab Bar macOS style -->
-          <div class="inline-flex p-1 bg-dark-100/80 dark:bg-dark-900/80 backdrop-blur-md rounded-2xl border border-dark-200/50 dark:border-dark-700/50 text-xs font-bold w-full sm:w-auto">
-            <button (click)="activeTab.set('tickets')" class="flex-1 sm:flex-none px-4 py-2 rounded-xl transition-all duration-200" [class]="activeTab() === 'tickets' ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-white shadow-xs' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'">
-              Tickets ({{ orders().length }})
-            </button>
-            <button (click)="activeTab.set('cajaChica')" class="flex-1 sm:flex-none px-4 py-2 rounded-xl transition-all duration-200" [class]="activeTab() === 'cajaChica' ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-white shadow-xs' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'">
-              Caja Chica
-            </button>
-            <button (click)="activeTab.set('reportes')" class="flex-1 sm:flex-none px-4 py-2 rounded-xl transition-all duration-200" [class]="activeTab() === 'reportes' ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-white shadow-xs' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'">
-              Reportes
-            </button>
-            <button (click)="activeTab.set('cierre')" class="flex-1 sm:flex-none px-4 py-2 rounded-xl transition-all duration-200" [class]="activeTab() === 'cierre' ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-white shadow-xs' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'">
-              Cierre Turno
-            </button>
-          </div>
-        </div>
-      </div>
+    <div class="h-full flex flex-col bg-dark-50 dark:bg-dark-900 transition-colors duration-300">
+      <app-tab-bar [items]="tabs()" [active]="activeTab()" (select)="activeTab.set($any($event))" />
 
+      <div class="flex-1 min-h-0 flex flex-col w-full max-w-screen-2xl mx-auto px-4 sm:px-6 pt-4 sm:pt-5 pb-safe">
       @if (!soundEnabled()) {
         <button (click)="enableSound()" class="w-full mb-4 p-3 rounded-2xl bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 font-bold text-sm flex items-center justify-center gap-2">
           <span class="material-symbols-rounded">volume_up</span>
@@ -58,15 +31,15 @@ import { TenantService } from '../../../core/tenant/tenant.service';
 
       <!-- Action Quick Bar (solo en tickets) -->
       @if (activeTab() === 'tickets') {
-        <div class="flex flex-wrap gap-2 shrink-0 mb-4">
-          <button (click)="showMergeModal.set(true)" class="px-4 py-2.5 rounded-2xl text-xs font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/20 transition-all active:scale-95 flex items-center gap-1.5 shadow-xs">
-            <span class="material-symbols-rounded text-base">link</span> Unir Mesas
+        <div class="grid grid-cols-3 sm:flex gap-2 shrink-0 mb-4">
+          <button (click)="showMergeModal.set(true)" class="min-h-[56px] sm:min-h-0 px-2 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/20 transition-all active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+            <span class="material-symbols-rounded text-xl sm:text-lg">link</span> Unir mesas
           </button>
-          <button (click)="openSplitModal()" class="px-4 py-2.5 rounded-2xl text-xs font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/20 transition-all active:scale-95 flex items-center gap-1.5 shadow-xs">
-            <span class="material-symbols-rounded text-base">call_split</span> Dividir Cuenta
+          <button (click)="openSplitModal()" class="min-h-[56px] sm:min-h-0 px-2 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/20 transition-all active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+            <span class="material-symbols-rounded text-xl sm:text-lg">call_split</span> Dividir cuenta
           </button>
-          <button (click)="showDirectSaleModal.set(true)" class="px-4 py-2.5 rounded-2xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/20 transition-all active:scale-95 flex items-center gap-1.5 shadow-xs">
-            <span class="material-symbols-rounded text-base">shopping_bag</span> Venta Directa / Para Llevar
+          <button (click)="showDirectSaleModal.set(true)" class="min-h-[56px] sm:min-h-0 px-2 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/20 transition-all active:scale-95 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+            <span class="material-symbols-rounded text-xl sm:text-lg">shopping_bag</span> Para llevar
           </button>
         </div>
       }
@@ -83,7 +56,7 @@ import { TenantService } from '../../../core/tenant/tenant.service';
               <p class="text-xs text-dark-400">Todas las comandas registradas han sido cobradas o cerradas.</p>
             </div>
           } @else {
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
               @for (order of orders(); track order.id) {
                 <button 
                   (click)="openPaymentModal(order)"
@@ -274,26 +247,26 @@ import { TenantService } from '../../../core/tenant/tenant.service';
           <div class="max-w-3xl mx-auto space-y-4">
             <div class="bg-white dark:bg-dark-800 rounded-3xl border border-dark-100 dark:border-dark-700 shadow-xs overflow-hidden" id="shift-report">
               <div class="bg-dark-900 text-white p-6">
-                <h3 class="text-2xl font-black tracking-tight">Reporte de Cierre de Caja</h3>
+                <h3 class="text-xl sm:text-2xl font-black whitespace-nowrap tracking-tight">Reporte de Cierre de Caja</h3>
                 <p class="text-dark-300 text-xs mt-1 font-medium">{{ today | date:'fullDate' }}</p>
               </div>
               <div class="p-6 space-y-6">
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div class="bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl p-4 text-center border border-emerald-200 dark:border-emerald-800/60">
                     <p class="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider mb-1">Ventas Totales</p>
-                    <p class="text-2xl font-black text-emerald-800 dark:text-emerald-200">$ {{ todayStats().totalSales | number:'1.0-0' }}</p>
+                    <p class="text-xl sm:text-2xl font-black whitespace-nowrap text-emerald-800 dark:text-emerald-200">$ {{ todayStats().totalSales | number:'1.0-0' }}</p>
                   </div>
                   <div class="bg-blue-50 dark:bg-blue-950/40 rounded-2xl p-4 text-center border border-blue-200 dark:border-blue-800/60">
                     <p class="text-[10px] font-extrabold text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-1">Efectivo</p>
-                    <p class="text-2xl font-black text-blue-800 dark:text-blue-200">$ {{ shiftBreakdown().totalEfectivo | number:'1.0-0' }}</p>
+                    <p class="text-xl sm:text-2xl font-black whitespace-nowrap text-blue-800 dark:text-blue-200">$ {{ shiftBreakdown().totalEfectivo | number:'1.0-0' }}</p>
                   </div>
                   <div class="bg-purple-50 dark:bg-purple-950/40 rounded-2xl p-4 text-center border border-purple-200 dark:border-purple-800/60">
                     <p class="text-[10px] font-extrabold text-purple-700 dark:text-purple-300 uppercase tracking-wider mb-1">Transferencias</p>
-                    <p class="text-2xl font-black text-purple-800 dark:text-purple-200">$ {{ shiftBreakdown().totalTransferencia | number:'1.0-0' }}</p>
+                    <p class="text-xl sm:text-2xl font-black whitespace-nowrap text-purple-800 dark:text-purple-200">$ {{ shiftBreakdown().totalTransferencia | number:'1.0-0' }}</p>
                   </div>
                   <div class="bg-red-50 dark:bg-red-950/40 rounded-2xl p-4 text-center border border-red-200 dark:border-red-800/60">
                     <p class="text-[10px] font-extrabold text-red-700 dark:text-red-300 uppercase tracking-wider mb-1">Gastos Caja</p>
-                    <p class="text-2xl font-black text-red-800 dark:text-red-200">- $ {{ pettyCashService.totalExpenses() | number:'1.0-0' }}</p>
+                    <p class="text-xl sm:text-2xl font-black whitespace-nowrap text-red-800 dark:text-red-200">- $ {{ pettyCashService.totalExpenses() | number:'1.0-0' }}</p>
                   </div>
                 </div>
 
@@ -309,8 +282,8 @@ import { TenantService } from '../../../core/tenant/tenant.service';
                       <span class="font-bold">$ {{ pettyCashService.totalExpenses() | number:'1.0-0' }}</span>
                     </div>
                     <div class="flex justify-between items-center pt-3 border-t border-dark-200 dark:border-dark-700">
-                      <span class="font-black text-dark-900 dark:text-white text-base">Efectivo Neto a Entregar</span>
-                      <span class="font-black text-3xl text-emerald-600 dark:text-emerald-400 tracking-tight">$ {{ (shiftBreakdown().totalEfectivo - pettyCashService.totalExpenses()) | number:'1.0-0' }}</span>
+                      <span class="font-black text-dark-900 dark:text-white text-sm sm:text-base">Efectivo a entregar</span>
+                      <span class="font-black text-2xl sm:text-3xl whitespace-nowrap text-emerald-600 dark:text-emerald-400 tracking-tight">$ {{ (shiftBreakdown().totalEfectivo - pettyCashService.totalExpenses()) | number:'1.0-0' }}</span>
                     </div>
                   </div>
                 </div>
@@ -603,6 +576,7 @@ import { TenantService } from '../../../core/tenant/tenant.service';
           </div>
         </div>
       }
+      </div>
     </div>
   `,
   styles: [`
@@ -630,6 +604,12 @@ export class CashierDashboardComponent implements OnDestroy {
 
   // View State
   activeTab = signal<'tickets' | 'reportes' | 'cajaChica' | 'cierre'>('tickets');
+  readonly tabs = computed<TabItem[]>(() => [
+    { id: 'tickets', label: 'Tickets', icon: 'receipt_long', badge: this.orders().length },
+    { id: 'cajaChica', label: 'Caja chica', shortLabel: 'Gastos', icon: 'payments' },
+    { id: 'reportes', label: 'Reportes', icon: 'bar_chart' },
+    { id: 'cierre', label: 'Cierre de turno', shortLabel: 'Cierre', icon: 'lock_clock' },
+  ]);
 
   // 🔔 Aviso de comandas nuevas o actualizadas por el mesero
   private seenOrders: Map<string, number> | null = null; // null = aún no se ha cargado la lista inicial

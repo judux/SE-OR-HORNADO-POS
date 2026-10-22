@@ -18,7 +18,7 @@ type Periodo = 'hoy' | '7d' | '30d';
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-bold text-dark-800 dark:text-white flex items-center gap-2">
           <span class="material-symbols-rounded text-primary-500">dashboard</span>
-          Dashboard de Ventas
+          Ventas
         </h2>
         <div class="flex bg-dark-100 dark:bg-dark-800 rounded-xl p-1 text-sm font-bold">
           @for (p of periodos; track p.value) {
@@ -31,54 +31,56 @@ type Periodo = 'hoy' | '7d' | '30d';
       </div>
 
       <!-- KPI Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white dark:bg-dark-800 rounded-2xl p-5 border border-dark-100 dark:border-dark-700 shadow-sm">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-900/40 text-green-600 dark:text-green-400 flex items-center justify-center">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div class="min-w-0 bg-white dark:bg-dark-800 rounded-2xl p-4 sm:p-5 border border-dark-100 dark:border-dark-700 shadow-sm">
+          <div class="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-green-50 dark:bg-green-900/40 text-green-600 dark:text-green-400 flex items-center justify-center">
               <span class="material-symbols-rounded">payments</span>
             </div>
-            <p class="text-xs font-bold text-dark-400 uppercase tracking-wider">Ventas {{ periodoLabel() }}</p>
+            <p class="text-[11px] sm:text-xs font-bold text-dark-400 uppercase tracking-wider leading-tight">Ventas {{ periodoLabel() }}</p>
           </div>
-          <p class="text-3xl font-black text-dark-800 dark:text-white">$ {{ stats().totalSales | number:'1.0-0' }}</p>
+          <p class="text-xl sm:text-3xl font-black text-dark-800 dark:text-white whitespace-nowrap truncate">$ {{ stats().totalSales | number:'1.0-0' }}</p>
           <p class="text-xs text-dark-400 dark:text-dark-300 mt-1">{{ stats().totalOrders }} órdenes</p>
         </div>
 
-        <div class="bg-white dark:bg-dark-800 rounded-2xl p-5 border border-dark-100 dark:border-dark-700 shadow-sm">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+        <div class="min-w-0 bg-white dark:bg-dark-800 rounded-2xl p-4 sm:p-5 border border-dark-100 dark:border-dark-700 shadow-sm">
+          <div class="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <span class="material-symbols-rounded">restaurant</span>
             </div>
-            <p class="text-xs font-bold text-dark-400 uppercase tracking-wider">Items Vendidos</p>
+            <p class="text-[11px] sm:text-xs font-bold text-dark-400 uppercase tracking-wider leading-tight">Items Vendidos</p>
           </div>
-          <p class="text-3xl font-black text-dark-800 dark:text-white">{{ stats().totalItems }}</p>
+          <p class="text-xl sm:text-3xl font-black text-dark-800 dark:text-white whitespace-nowrap truncate">{{ stats().totalItems }}</p>
           <p class="text-xs text-dark-400 dark:text-dark-300 mt-1">Platos y bebidas</p>
         </div>
 
-        <div class="bg-white dark:bg-dark-800 rounded-2xl p-5 border border-dark-100 dark:border-dark-700 shadow-sm">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+        <div class="min-w-0 bg-white dark:bg-dark-800 rounded-2xl p-4 sm:p-5 border border-dark-100 dark:border-dark-700 shadow-sm">
+          <div class="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-purple-50 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
               <span class="material-symbols-rounded">receipt_long</span>
             </div>
-            <p class="text-xs font-bold text-dark-400 uppercase tracking-wider">Ticket Promedio</p>
+            <p class="text-[11px] sm:text-xs font-bold text-dark-400 uppercase tracking-wider leading-tight">Ticket Promedio</p>
           </div>
-          <p class="text-3xl font-black text-dark-800 dark:text-white">$ {{ stats().avgTicket | number:'1.0-0' }}</p>
+          <p class="text-xl sm:text-3xl font-black text-dark-800 dark:text-white whitespace-nowrap truncate">$ {{ stats().avgTicket | number:'1.0-0' }}</p>
           <p class="text-xs text-dark-400 dark:text-dark-300 mt-1">Por orden</p>
         </div>
 
-        <div class="bg-white dark:bg-dark-800 rounded-2xl p-5 border border-dark-100 dark:border-dark-700 shadow-sm">
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+        <div class="min-w-0 bg-white dark:bg-dark-800 rounded-2xl p-4 sm:p-5 border border-dark-100 dark:border-dark-700 shadow-sm">
+          <div class="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-xl bg-orange-50 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 flex items-center justify-center">
               <span class="material-symbols-rounded">star</span>
             </div>
-            <p class="text-xs font-bold text-dark-400 uppercase tracking-wider">Producto Top</p>
+            <p class="text-[11px] sm:text-xs font-bold text-dark-400 uppercase tracking-wider leading-tight">Producto Top</p>
           </div>
           <p class="text-xl font-black text-dark-800 dark:text-white leading-tight">{{ topProduct().name || 'N/A' }}</p>
           <p class="text-xs text-dark-400 dark:text-dark-300 mt-1">{{ topProduct().quantity || 0 }} uds vendidas</p>
         </div>
       </div>
 
+      <!-- En PC: más vendidos e historial lado a lado (en celular, uno debajo del otro) -->
+      <div class="grid gap-6 xl:grid-cols-5 items-start">
       <!-- Productos más vendidos -->
-      <div class="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-sm overflow-hidden">
+      <div class="xl:col-span-2 bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-sm overflow-hidden">
         <div class="p-5 border-b border-dark-100 dark:border-dark-700">
           <h3 class="font-bold text-dark-800 dark:text-white flex items-center gap-2">
             <span class="material-symbols-rounded text-primary-500">trending_up</span>
@@ -111,7 +113,7 @@ type Periodo = 'hoy' | '7d' | '30d';
       </div>
 
       <!-- Historial de Órdenes -->
-      <div class="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-sm overflow-hidden">
+      <div class="xl:col-span-3 bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-sm overflow-hidden">
         <div class="p-5 border-b border-dark-100 dark:border-dark-700">
           <h3 class="font-bold text-dark-800 dark:text-white flex items-center gap-2">
             <span class="material-symbols-rounded text-dark-400 dark:text-dark-500">history</span>
@@ -151,6 +153,8 @@ type Periodo = 'hoy' | '7d' | '30d';
             </tbody>
           </table>
         }
+      </div>
+
       </div>
 
       <!-- Turnos cerrados (archivados, nunca se borran) -->

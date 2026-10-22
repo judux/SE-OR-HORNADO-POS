@@ -30,11 +30,11 @@ import { StaffLinkComponent } from '../staff-link/staff-link.component';
       </div>
 
       <!-- Lista de usuarios -->
-      <div class="grid gap-3">
+      <div class="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
         @for (user of userService.allUsers(); track user.id) {
-          <div class="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-5 flex items-center justify-between
+          <div class="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-4 sm:p-5 flex items-center justify-between gap-3
                       hover:shadow-md transition-shadow duration-200">
-            <div class="flex-1">
+            <div class="flex-1 min-w-0">
               <div class="flex items-center gap-3 mb-1">
                 <h3 class="font-semibold text-dark-800 dark:text-gray-100">{{ user.nombre }}</h3>
                 @if (!user.activo) {
@@ -43,8 +43,8 @@ import { StaffLinkComponent } from '../staff-link/staff-link.component';
                   </span>
                 }
               </div>
-              <div class="flex items-center gap-3 mt-2">
-                <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-dark-100 dark:bg-dark-700 text-dark-600 dark:text-dark-300">
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                <span class="whitespace-nowrap px-2 py-0.5 rounded-full text-xs font-medium bg-dark-100 dark:bg-dark-700 text-dark-600 dark:text-dark-300">
                   {{ userService.getRolLabel(user.rol) }}
                 </span>
                 <span class="text-sm font-mono text-dark-400">
@@ -53,7 +53,7 @@ import { StaffLinkComponent } from '../staff-link/staff-link.component';
               </div>
             </div>
 
-            <div class="flex items-center gap-2 ml-4">
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0">
               <!-- Toggle activo -->
               <button
                 (click)="userService.toggleActivo(user.id)"
@@ -159,7 +159,7 @@ import { StaffLinkComponent } from '../staff-link/staff-link.component';
                 />
               </div>
 
-              <div class="flex items-center gap-3 mt-2">
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
                 <label class="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" [(ngModel)]="formData.activo"
                          class="w-5 h-5 rounded accent-primary-500" />

@@ -15,6 +15,7 @@ function toValue(v) {
     if (typeof v === 'boolean') return { booleanValue: v };
     if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
     if (typeof v === 'string') return { stringValue: v };
+    if (v instanceof Date) return { timestampValue: v.toISOString() };
     if (Array.isArray(v)) return { arrayValue: { values: v.map(toValue) } };
     return { mapValue: { fields: toFields(v) } };
 }
@@ -102,6 +103,40 @@ for (const r of restaurantes) {
     }
 }
 
+// Comandas abiertas en caja y ventas del día en Señor Hornado (para ver caja y resumen con datos)
+{
+    const rid = 'senor-hornado-demo';
+    const ago = min => new Date(Date.now() - min * 60_000);
+    const line = (n, id, nombre, cantidad, precio, notas) => ({ line_id: `l${n}`, id_producto: id, nombre_producto: nombre, cantidad, precio_unitario: precio, enviado: true, ...(notas ? { notas } : {}) });
+    const abiertas = [
+        { mesa: 1, min: 25, items: [line(1, 'p_hornado', 'Hornado', 2, 15000, 'sin ensalada'), line(2, 'p_gaseosa', 'Gaseosa', 2, 4000)] },
+        { mesa: 2, min: 12, items: [line(3, 'p_bandeja', 'Bandeja Paisa', 1, 22500), line(4, 'p_jugo', 'Jugo natural', 1, 5000)] },
+        { mesa: 3, min: 4, items: [line(5, 'p_almuerzo', 'Almuerzo del día', 3, 13000, '1 sin sopa')] },
+    ];
+    for (const o of abiertas) {
+        const total = o.items.reduce((t, i) => t + i.cantidad * i.precio_unitario, 0);
+        await put(`restaurants/${rid}/orders`, `demo_mesa_${o.mesa}`, {
+            id: `demo_mesa_${o.mesa}`, id_mesa: `mesa_${o.mesa}`, numero_mesa: o.mesa, id_mesero: 'u0', nombre_mesero: 'Carlos',
+            items: o.items, estado: 'en_caja', codigo_pago: `D${o.mesa}X`, subtotal: total, propina: 0, total,
+            fecha_creacion: ago(o.min + 5), actualizado_en: ago(o.min), enviado_en: ago(o.min)
+        });
+        await put(`restaurants/${rid}/tables`, `mesa_${o.mesa}`, { id: `mesa_${o.mesa}`, numero_mesa: o.mesa, capacidad: 4, estado: 'ocupada' });
+    }
+    const ventas = [
+        { min: 180, metodo: 'efectivo', items: [line(6, 'p_hornado', 'Hornado', 3, 15000)] },
+        { min: 120, metodo: 'transferencia', items: [line(7, 'p_bandeja', 'Bandeja Paisa', 2, 22500), line(8, 'p_gaseosa', 'Gaseosa', 2, 4000)] },
+        { min: 60, metodo: 'efectivo', items: [line(9, 'p_almuerzo', 'Almuerzo del día', 4, 13000)] },
+    ];
+    for (const [i, v] of ventas.entries()) {
+        const total = v.items.reduce((t, it) => t + it.cantidad * it.precio_unitario, 0);
+        await put(`restaurants/${rid}/order_history`, `demo_venta_${i}`, {
+            id: `demo_venta_${i}`, id_mesa: 'mesa_4', numero_mesa: 4, id_mesero: 'u0', nombre_mesero: 'Carlos',
+            items: v.items, estado: 'pagada', codigo_pago: `V${i}`, subtotal: total, propina: 0, total, metodo_pago: v.metodo,
+            fecha_creacion: ago(v.min + 30), fecha_cierre: ago(v.min)
+        });
+    }
+}
+
 // Solicitud pendiente de un restaurante nuevo (para probar aprobar)
 const pedroUid = await account('pedro@prueba.app');
 await put('solicitudes', pedroUid, { email: 'pedro@prueba.app', nombre_restaurante: 'Parrilla Don Pedro', nombre_contacto: 'Pedro', telefono: '300 000 0000', estado: 'pendiente' });
@@ -112,3 +147,4 @@ console.log('  Señor Hornado: admin johan@prueba.app (PIN 4821) · mesero 1111 
 console.log('    Enlace del personal: http://localhost:4200/unirse/senor-hornado-demo/demo-codigo-senor-hornado-123456');
 console.log('  Asadero Prueba: admin asadero@prueba.app (PIN 4821)');
 console.log('  Solicitud pendiente: pedro@prueba.app → "Parrilla Don Pedro"');
+console.log('  Señor Hornado tiene 3 comandas en caja (mesas 1–3) y 3 ventas de hoy.');
