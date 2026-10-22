@@ -23,9 +23,16 @@
 3. En tu panel aparece en **Solicitudes pendientes** → **Aprobar**. Puedes ajustar los nombres y, solo para Señor Hornado, marcar **"Copiar el menú y las mesas de la versión anterior"**.
 4. Él vuelve a entrar con Google, **crea su PIN** escribiéndolo dos veces y queda en su panel de administración.
 
-## 3. El admin incorpora a su personal
+## 3. El admin carga su menú y sus mesas
 
-1. En **Usuarios → Nuevo usuario** crea a cada mesero y cajero con su PIN.
+1. En **Menú → Pegar menú** pega la carta como texto: un producto por línea con su precio (por ejemplo `Hornado 15.000`). Una línea con el nombre de una sección (`BEBIDAS`, `SOPAS`) pone esa categoría a lo que sigue.
+2. Revisa la vista previa: ahí se puede cambiar la categoría de cada producto. Lo que ya existe en el menú no se duplica, y las líneas que no se entienden aparecen en amarillo para corregirlas.
+3. **Agregar** guarda todo de una vez. Después se puede editar cada producto o marcarlo como agotado.
+4. En **Mesas → Nueva mesa** crea las mesas del local.
+
+## 4. El admin incorpora a su personal
+
+1. En **Personal → Nuevo usuario** crea a cada mesero y cajero con su PIN.
 2. En la misma pantalla está el **enlace para tu personal**: **Copiar** o **Compartir** (por ejemplo, por WhatsApp).
 3. Cada empleado abre el enlace en su celular → su celular queda vinculado a **ese** restaurante → entra con su PIN.
 4. Si el enlace se filtra: **Generar enlace nuevo**. El viejo deja de servir para celulares nuevos; los que ya están vinculados siguen funcionando.
@@ -37,7 +44,7 @@
 | La app se ve como la versión anterior | Ciérrala y vuelve a abrirla (el celular guarda la versión anterior hasta recargar) |
 | "Enlace no válido" | El admin generó uno nuevo o el restaurante está suspendido: pide el enlace actual |
 | El admin olvidó su PIN | En tu panel, en su restaurante: **Restablecer PIN del admin**. Al entrar con Google elige uno nuevo |
-| Un empleado olvidó su PIN | El admin lo cambia en **Usuarios** |
+| Un empleado olvidó su PIN | El admin lo cambia en **Personal** |
 | "Restaurante suspendido" | Reactívalo desde tu panel |
 | "PIN incorrecto" | Los PINs de un restaurante no sirven en otro; revisa que el celular esté vinculado al restaurante correcto |
 | Volver a la versión anterior | Pídeselo a Claude o, en la consola, **Hosting → Historial de versiones → Revertir** |

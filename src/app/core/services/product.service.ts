@@ -1,7 +1,7 @@
 import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
 import {
     Firestore, collection, collectionData, doc,
-    addDoc, updateDoc, deleteDoc
+    addDoc, updateDoc, deleteDoc, writeBatch
 } from '@angular/fire/firestore';
 import { TenantService } from '../tenant/tenant.service';
 import { Subscription } from 'rxjs';
@@ -49,6 +49,20 @@ export class ProductService implements OnDestroy {
             await addDoc(productsRef, product);
         } catch (error) {
             console.error('Error al agregar producto:', error);
+        }
+    }
+
+    /**
+     * Crea varios productos de una vez (menú pegado como texto). Cada grupo de hasta 400 se guarda
+     * completo o nada; si falla, el error sube para que la pantalla lo muestre.
+     */
+    async addProducts(products: Omit<Product, 'id'>[]): Promise<void> {
+        for (let i = 0; i < products.length; i += 400) {
+            const batch = writeBatch(this.firestore);
+            for (const product of products.slice(i, i + 400)) {
+                batch.set(this.tenant.newDocRef('products'), product);
+            }
+            await batch.commit();
         }
     }
 

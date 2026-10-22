@@ -4,7 +4,7 @@
 
 /** Hasta dos iniciales: "Señor Hornado" → "SH", "Asadero" → "AS". */
 export function initials(name: string): string {
-    const words = name.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().split(/\s+/).filter(w => /[a-z0-9]/i.test(w));
+    const words = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().split(/\s+/).filter(w => /[a-z0-9]/i.test(w));
     if (words.length === 0) return 'R';
     if (words.length === 1) return words[0].replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase();
     return (words[0][0] + words[1][0]).toUpperCase();
