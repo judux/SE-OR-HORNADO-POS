@@ -16,7 +16,7 @@ import { Restaurant, Solicitud } from '../../../shared/interfaces';
   imports: [FormsModule, DatePipe],
   template: `
     <div class="min-h-app bg-dark-50 dark:bg-dark-900">
-      <header class="bg-dark-900 text-white px-4 sm:px-6 py-4 flex items-center justify-between">
+      <header class="bg-dark-900 text-white px-4 sm:px-6 py-4 safe-header flex items-center justify-between">
         <div class="flex items-center gap-3 min-w-0">
           <span class="material-symbols-rounded text-amber-400">admin_panel_settings</span>
           <div class="min-w-0">

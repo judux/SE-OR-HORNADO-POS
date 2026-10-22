@@ -14,7 +14,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
   template: `
     <div class="h-app bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col overflow-hidden">
       <!-- Header Mobile / Desktop -->
-      <header class="bg-dark-800/90 dark:bg-dark-900/90 backdrop-blur-xl border-b border-dark-700/50 text-white px-4 py-3 flex items-center justify-between shadow-lg z-50 shrink-0 sticky top-0">
+      <header class="bg-dark-800/90 dark:bg-dark-900/90 backdrop-blur-xl border-b border-dark-700/50 text-white px-4 py-3 safe-header flex items-center justify-between shadow-lg z-50 shrink-0 sticky top-0">
         <div class="flex items-center gap-3">
           @if (isTakingOrder) {
             <!-- Si está tomando pedido mostrar botón atrás -->

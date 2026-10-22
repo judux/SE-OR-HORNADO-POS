@@ -122,14 +122,16 @@
   /*
    * Zona segura del celular (iPhone con notch / Dynamic Island y barra de inicio):
    * - html y body ocupan TODA la pantalla con el mismo color de la app (sin bordes de otro tono).
-   * - app-root empieza debajo de la barra de estado (hora, wifi, batería) y llega hasta el borde
-   *   de abajo: cada pantalla pinta su propio fondo hasta el final (sin franja de otro color).
-   *   Las zonas con contenido abajo usan .pb-safe para no quedar bajo la barra de inicio del iPhone.
+   * - app-root ocupa toda la pantalla: cada pantalla pinta su propio color de borde a borde
+   *   (sin franjas negras arriba ni abajo).
+   * - Los encabezados usan .safe-header: su fondo se extiende bajo la barra de estado (hora, wifi,
+   *   batería) y su contenido empieza justo debajo de ella.
+   * - Las zonas con contenido abajo usan .pb-safe para no quedar bajo la barra de inicio del iPhone.
    * - --app-h es el alto útil (lo mide src/app/core/pwa/viewport.ts); usar h-app / min-h-app
    *   en vez de h-screen o 100vh, que en el iPhone instalado no coinciden con la pantalla.
    */
   :root {
-    --app-h: calc(100dvh - env(safe-area-inset-top));
+    --app-h: 100dvh;
   }
 
   html {
@@ -165,7 +167,7 @@
   app-root {
     display: block;
     position: fixed;
-    top: env(safe-area-inset-top);
+    top: 0;
     left: env(safe-area-inset-left);
     right: env(safe-area-inset-right);
     bottom: 0;
@@ -194,10 +196,9 @@
   /* Panel que sube desde abajo (comanda del mesero): su fondo cubre la barra de inicio y,
      cerrado, deja asomar solo esa franja para que el botón quede por encima de ella */
   .sheet-safe { padding-bottom: env(safe-area-inset-bottom); }
-  .sheet-closed { transform: translateY(calc(100% - env(safe-area-inset-bottom))); }
-  @media (min-width: 1024px) {
-    .sheet-closed { transform: none; }
-  }
+  .sheet-toggle { top: calc(-3.5rem - env(safe-area-inset-bottom)); }
+  /* Encabezado que llega hasta arriba: el contenido queda justo debajo de la barra de estado */
+  .safe-header { padding-top: max(0.75rem, calc(env(safe-area-inset-top) + 0.25rem)); }
 }
 
 @layer components {

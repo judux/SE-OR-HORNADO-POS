@@ -106,11 +106,11 @@ import { OrderItem, Product } from '../../../shared/interfaces';
                   fixed lg:relative inset-x-0 bottom-0 lg:bottom-auto h-[70vh] lg:h-full z-40 sheet-safe transition-transform duration-300 ease-out
                   lg:translate-y-0"
            [class.translate-y-0]="isCartOpenMobile()"
-           [class.sheet-closed]="!isCartOpenMobile()">
+           [class.translate-y-full]="!isCartOpenMobile()">
         
         <!-- Toggle Flotante Móvil -->
         <button (click)="isCartOpenMobile.set(!isCartOpenMobile())" 
-                class="lg:hidden absolute -top-14 inset-x-4 h-12 bg-dark-800 text-white rounded-2xl font-bold flex items-center justify-between px-5 shadow-2xl border border-dark-700 backdrop-blur-md active:scale-98">
+                class="lg:hidden absolute sheet-toggle inset-x-4 h-12 bg-dark-800 text-white rounded-2xl font-bold flex items-center justify-between px-5 shadow-2xl border border-dark-700 backdrop-blur-md active:scale-98">
           <div class="flex items-center gap-2">
             <span class="w-6 h-6 rounded-full bg-amber-500 text-dark-900 flex items-center justify-center text-xs font-black">{{ orderService.totalQuantity() }}</span>
             <span>Ver Comanda</span>
