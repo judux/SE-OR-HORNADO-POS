@@ -3,12 +3,11 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProductService } from '../../../core/services/product.service';
 import { Product } from '../../../shared/interfaces';
-import { MenuImportComponent } from '../menu-import/menu-import.component';
 
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, MenuImportComponent],
+  imports: [CommonModule, FormsModule],
   template: `
     <div>
       <!-- Header con filtro y botón agregar -->
@@ -17,23 +16,13 @@ import { MenuImportComponent } from '../menu-import/menu-import.component';
           <h2 class="text-xl font-bold text-dark-800 dark:text-white">Menú del Restaurante</h2>
           <p class="text-dark-400 dark:text-dark-300 text-sm">{{ filteredProducts().length }} productos</p>
         </div>
-        <div class="grid grid-cols-2 sm:flex gap-2">
-          <button (click)="showImport.set(true)"
-            class="h-11 px-4 rounded-xl bg-white dark:bg-dark-800 border border-dark-200 dark:border-dark-700 text-dark-700 dark:text-white text-sm font-semibold flex items-center justify-center gap-2 hover:bg-dark-50 dark:hover:bg-dark-700">
-            <span class="material-symbols-rounded text-xl">content_paste</span> Pegar menú
-          </button>
-          <button
-            (click)="openForm()"
-            class="btn-primary flex items-center justify-center gap-2 text-sm font-semibold"
-          >
-            <span class="material-symbols-rounded">add</span> Agregar producto
-          </button>
-        </div>
+        <button
+          (click)="openForm()"
+          class="btn-primary flex items-center justify-center gap-2 text-sm font-semibold"
+        >
+          <span class="material-symbols-rounded">add</span> Agregar producto
+        </button>
       </div>
-
-      @if (showImport()) {
-        <app-menu-import (closed)="showImport.set(false)" />
-      }
 
       <!-- Filtro por categoría -->
       <div class="flex flex-wrap gap-2 mb-6">
@@ -248,7 +237,6 @@ import { MenuImportComponent } from '../menu-import/menu-import.component';
 export class ProductListComponent {
   selectedCategory = signal<string>('todos');
   showForm = signal(false);
-  showImport = signal(false);
   editingProduct = signal<Product | null>(null);
   deleteTarget = signal<Product | null>(null);
   formError = signal('');

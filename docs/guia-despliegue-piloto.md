@@ -25,10 +25,8 @@
 
 ## 3. El admin carga su menú y sus mesas
 
-1. En **Menú → Pegar menú** pega la carta como texto: un producto por línea con su precio (por ejemplo `Hornado 15.000`). Una línea con el nombre de una sección (`BEBIDAS`, `SOPAS`) pone esa categoría a lo que sigue.
-2. Revisa la vista previa: ahí se puede cambiar la categoría de cada producto. Lo que ya existe en el menú no se duplica, y las líneas que no se entienden aparecen en amarillo para corregirlas.
-3. **Agregar** guarda todo de una vez. Después se puede editar cada producto o marcarlo como agotado.
-4. En **Mesas → Nueva mesa** crea las mesas del local.
+1. En **Menú → Agregar producto** crea cada producto con su precio y categoría. Se puede editar o marcar como agotado en cualquier momento.
+2. En **Mesas → Nueva mesa** crea las mesas del local.
 
 ## 4. El admin incorpora a su personal
 
