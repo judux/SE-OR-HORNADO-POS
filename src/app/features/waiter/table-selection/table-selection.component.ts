@@ -10,60 +10,41 @@ import { Table } from '../../../shared/interfaces';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="h-full overflow-y-auto flex flex-col p-4 sm:p-6 pb-safe max-w-7xl mx-auto w-full">
-      <!-- Header interno Apple Style -->
-      <div class="mb-6 bg-white/80 dark:bg-dark-800/80 backdrop-blur-xl p-5 sm:p-6 rounded-3xl shadow-sm border border-dark-100 dark:border-dark-700/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <div class="flex items-center gap-2 text-xs font-semibold tracking-wider text-dark-400 dark:text-dark-300 uppercase mb-1">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Salón Principal
-          </div>
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-dark-800 dark:text-white tracking-tight">Selección de Mesa</h2>
-          <p class="text-dark-400 dark:text-dark-300 text-sm mt-0.5">Toca una mesa para abrir o continuar un pedido</p>
-        </div>
-        
-        <!-- Segmented Filter Control -->
-        <div class="inline-flex p-1 bg-dark-100/70 dark:bg-dark-900/70 backdrop-blur-md rounded-2xl border border-dark-200/50 dark:border-dark-700/50 text-xs font-semibold w-full md:w-auto">
-          <button 
-            (click)="filterStatus.set('todos')"
-            class="flex-1 md:flex-none px-4 py-2 rounded-xl transition-all duration-200"
-            [class]="filterStatus() === 'todos' ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-white shadow-sm' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'"
-          >
-            Todas ({{ tableService.allTables().length }})
-          </button>
-          <button 
-            (click)="filterStatus.set('libre')"
-            class="flex-1 md:flex-none px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5"
-            [class]="filterStatus() === 'libre' ? 'bg-white dark:bg-dark-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'"
-          >
-            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-            Libres ({{ countByStatus('libre') }})
-          </button>
-          <button 
-            (click)="filterStatus.set('pendiente')"
-            class="flex-1 md:flex-none px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5"
-            [class]="filterStatus() === 'pendiente' ? 'bg-white dark:bg-dark-700 text-amber-600 dark:text-amber-400 shadow-sm' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'"
-          >
-            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-            Pendientes ({{ countByStatus('pendiente') }})
-          </button>
-          <button 
-            (click)="filterStatus.set('en_caja')"
-            class="flex-1 md:flex-none px-3.5 py-2 rounded-xl transition-all duration-200 flex items-center justify-center gap-1.5"
-            [class]="filterStatus() === 'en_caja' ? 'bg-white dark:bg-dark-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'"
-          >
-            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-            En Caja ({{ countByStatus('en_caja') }})
-          </button>
-        </div>
+    <div class="h-full overflow-y-auto flex flex-col p-4 sm:p-6 pb-safe max-w-screen-2xl mx-auto w-full">
+      <!-- Filtros: en celular cuatro botones iguales; en PC alineados a la izquierda -->
+      <div class="grid grid-cols-4 gap-1 p-1 mb-4 sm:mb-6 shrink-0 bg-dark-100/70 dark:bg-dark-800/70 rounded-2xl border border-dark-200/50 dark:border-dark-700/50 sm:inline-grid sm:self-start">
+        <button (click)="filterStatus.set('todos')"
+          class="min-h-[52px] px-2 sm:px-4 rounded-xl transition-all duration-200 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2"
+          [class]="filterStatus() === 'todos' ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-white shadow-sm' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'">
+          <span class="text-[11px] sm:text-sm font-semibold truncate max-w-full">Todas</span>
+          <span class="flex items-center gap-1 text-[11px] sm:text-xs font-bold tabular-nums"><span class="w-2 h-2 rounded-full bg-dark-400"></span>{{ tableService.allTables().length }}</span>
+        </button>
+        <button (click)="filterStatus.set('libre')"
+          class="min-h-[52px] px-2 sm:px-4 rounded-xl transition-all duration-200 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2"
+          [class]="filterStatus() === 'libre' ? 'bg-white dark:bg-dark-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'">
+          <span class="text-[11px] sm:text-sm font-semibold truncate max-w-full">Libres</span>
+          <span class="flex items-center gap-1 text-[11px] sm:text-xs font-bold tabular-nums"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>{{ countByStatus('libre') }}</span>
+        </button>
+        <button (click)="filterStatus.set('pendiente')"
+          class="min-h-[52px] px-2 sm:px-4 rounded-xl transition-all duration-200 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2"
+          [class]="filterStatus() === 'pendiente' ? 'bg-white dark:bg-dark-700 text-amber-600 dark:text-amber-400 shadow-sm' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'">
+          <span class="text-[11px] sm:text-sm font-semibold truncate max-w-full">Pendientes</span>
+          <span class="flex items-center gap-1 text-[11px] sm:text-xs font-bold tabular-nums"><span class="w-2 h-2 rounded-full bg-amber-400"></span>{{ countByStatus('pendiente') }}</span>
+        </button>
+        <button (click)="filterStatus.set('en_caja')"
+          class="min-h-[52px] px-2 sm:px-4 rounded-xl transition-all duration-200 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2"
+          [class]="filterStatus() === 'en_caja' ? 'bg-white dark:bg-dark-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-dark-500 dark:text-dark-400 hover:text-dark-900 dark:hover:text-white'">
+          <span class="text-[11px] sm:text-sm font-semibold truncate max-w-full">En caja</span>
+          <span class="flex items-center gap-1 text-[11px] sm:text-xs font-bold tabular-nums"><span class="w-2 h-2 rounded-full bg-blue-500"></span>{{ countByStatus('en_caja') }}</span>
+        </button>
       </div>
 
       <!-- Cuadrícula de mesas Apple Squircle -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4">
         @for (table of filteredTables(); track table.id) {
           <button
             (click)="selectTable(table)"
-            class="group relative aspect-square rounded-3xl p-4 flex flex-col items-center justify-between
+            class="group relative min-h-[160px] sm:min-h-0 sm:aspect-square rounded-3xl p-3 sm:p-4 gap-2 flex flex-col items-center justify-between
                    transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl active:scale-95 text-left border overflow-hidden"
             [class]="getTableClass(table)"
           >

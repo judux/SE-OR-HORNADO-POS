@@ -19,22 +19,10 @@ import { OrderItem, Product } from '../../../shared/interfaces';
       
       <!-- Panel Izquierdo: Catálogo de Menú -->
       <div class="flex-1 flex flex-col min-h-0">
-        <!-- Header del Menú -->
-        <div class="mb-4 shrink-0 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <button (click)="goBack()" class="p-2 -ml-2 rounded-2xl text-dark-500 dark:text-dark-300 hover:bg-dark-200/60 dark:hover:bg-dark-800 hover:text-dark-900 dark:hover:text-white transition-all active:scale-95 flex items-center justify-center">
-              <span class="material-symbols-rounded">arrow_back</span>
-            </button>
-            <div>
-              <h2 class="text-xl sm:text-2xl font-extrabold text-dark-800 dark:text-white tracking-tight">Catálogo de Productos</h2>
-              <p class="text-xs text-dark-400 dark:text-dark-400">Selecciona los platillos para agregar al pedido</p>
-            </div>
-          </div>
-          <!-- Mesa Info Mobile -->
-          <div class="lg:hidden bg-amber-500/10 text-amber-700 dark:text-amber-300 px-3.5 py-1.5 rounded-full text-xs font-bold border border-amber-500/20 flex items-center gap-1.5">
-            <span class="material-symbols-rounded text-sm">table_restaurant</span>
-            Mesa {{ currentTable()?.numero_mesa }}
-          </div>
+        <!-- Título (en celular el encabezado ya dice qué mesa es) -->
+        <div class="hidden sm:block mb-4 shrink-0">
+          <h2 class="text-2xl font-extrabold text-dark-800 dark:text-white tracking-tight">Menú</h2>
+          <p class="text-xs text-dark-400">Toca un producto para agregarlo al pedido</p>
         </div>
 
         <!-- Filtros de Categoría (Pill Segmented Scroll Horizontal) -->
@@ -380,23 +368,6 @@ export class OrderTakingComponent {
     } else {
       this.router.navigate(['/mesero']);
     }
-  }
-
-  async goBack(): Promise<void> {
-    if (this.hasNewItems()) {
-      const confirm = await this.confirmDialog.confirm({
-        title: '¿Descartar pedido?',
-        message: 'Hay productos agregados a esta comanda. Si vuelves atrás sin enviar, se perderán.',
-        confirmText: 'Descartar',
-        cancelText: 'Continuar pidiendo',
-        confirmStyle: 'danger',
-        icon: 'delete'
-      });
-
-      if (!confirm) return;
-    }
-    this.orderService.clearCart();
-    this.router.navigate(['/mesero']);
   }
 
   openProductOptions(product: Product): void {
