@@ -17,7 +17,7 @@ import { TenantService } from '../../../core/tenant/tenant.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="h-[calc(100vh-72px)] p-4 sm:p-6 bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col max-w-7xl mx-auto w-full">
+    <div class="h-full p-4 sm:p-6 pb-safe bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col max-w-7xl mx-auto w-full">
       <!-- Header de Control de Caja -->
       <div class="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 bg-white/80 dark:bg-dark-800/80 backdrop-blur-xl p-5 rounded-3xl shadow-xs border border-dark-100 dark:border-dark-700/60">
         <div class="flex items-center gap-3.5">

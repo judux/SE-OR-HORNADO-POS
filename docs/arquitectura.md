@@ -39,6 +39,7 @@ Navegador (Angular 18, PWA)                      Firebase (plan Spark)
 5. **La lógica de cálculo va en archivos puros** (`order.logic.ts`) con pruebas unitarias. No se calculan totales dentro de los componentes.
 6. **Dentro de un `effect()` nunca se escriben signals ni se navega directamente.** Angular 18 lo bloquea (error NG0600) y la acción se pierde sin aviso visible. Las acciones van en `queueMicrotask(() => ...)` o en `untracked(...)`. Este error ya causó dos fallas: el aviso de comandas y el paso automático al PIN.
 7. **Antes de desplegar: `npm run verify`.** O directamente `npm run deploy`, que verifica primero y solo despliega si todo pasa.
+8. **Pantallas de celular: nunca `100vh`, `100dvh` ni `h-screen`.** En el iPhone instalado no coinciden con la pantalla (dejan una franja abajo o meten contenido bajo la barra de estado). Se usa `h-app` / `min-h-app` (alto útil real, medido en `core/pwa/viewport.ts`) y `pb-safe` en las zonas con contenido abajo, para no quedar bajo la barra de inicio. Las ventanas `fixed inset-0` ya respetan esas zonas desde `styles.css`.
 
 ## 4. Receta: agregar una función nueva (ejemplo: "recetas")
 

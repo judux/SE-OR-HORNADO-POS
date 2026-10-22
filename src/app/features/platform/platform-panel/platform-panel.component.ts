@@ -15,7 +15,7 @@ import { Restaurant, Solicitud } from '../../../shared/interfaces';
   standalone: true,
   imports: [FormsModule, DatePipe],
   template: `
-    <div class="min-h-[100dvh] bg-dark-50 dark:bg-dark-900">
+    <div class="min-h-app bg-dark-50 dark:bg-dark-900">
       <header class="bg-dark-900 text-white px-4 sm:px-6 py-4 flex items-center justify-between">
         <div class="flex items-center gap-3 min-w-0">
           <span class="material-symbols-rounded text-amber-400">admin_panel_settings</span>
@@ -29,7 +29,7 @@ import { Restaurant, Solicitud } from '../../../shared/interfaces';
         </button>
       </header>
 
-      <main class="max-w-5xl mx-auto p-4 sm:p-6 space-y-8">
+      <main class="max-w-5xl mx-auto p-4 sm:p-6 pb-safe space-y-8">
         <!-- Enlace de registro para restaurantes nuevos -->
         <section class="bg-white dark:bg-dark-800 rounded-3xl p-5 border border-dark-100 dark:border-dark-700">
           <h2 class="font-extrabold text-dark-900 dark:text-white flex items-center gap-2">

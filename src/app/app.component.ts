@@ -4,9 +4,9 @@ import { Title } from '@angular/platform-browser';
 import { ToastContainerComponent } from './shared/components/toast/toast-container.component';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
 import { ConnectionBannerComponent } from './shared/components/connection-banner/connection-banner.component';
-import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
 import { TenantService } from './core/tenant/tenant.service';
 import { PwaBrandingService } from './core/pwa/pwa-branding.service';
+import { AppUpdateService } from './core/pwa/app-update.service';
 
 // Rutas que funcionan sin un restaurante activo
 const PUBLIC_PREFIXES = ['/activar', '/plataforma', '/registro', '/unirse'];
@@ -14,13 +14,12 @@ const PUBLIC_PREFIXES = ['/activar', '/plataforma', '/registro', '/unirse'];
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ToastContainerComponent, ConfirmDialogComponent, ConnectionBannerComponent, UpdateBannerComponent],
+  imports: [RouterOutlet, ToastContainerComponent, ConfirmDialogComponent, ConnectionBannerComponent],
   template: `
     <router-outlet></router-outlet>
     <app-toast-container />
     <app-confirm-dialog />
     <app-connection-banner />
-    <app-update-banner />
   `,
   styleUrl: './app.component.css'
 })
@@ -30,6 +29,8 @@ export class AppComponent {
   private title = inject(Title);
   // Se crea aquí para que el nombre e ícono de la app sigan al restaurante de este equipo
   private pwaBranding = inject(PwaBrandingService);
+  // Versiones nuevas: se aplican solas en una pantalla segura, sin avisos
+  private appUpdate = inject(AppUpdateService);
 
   constructor() {
     effect(() => {

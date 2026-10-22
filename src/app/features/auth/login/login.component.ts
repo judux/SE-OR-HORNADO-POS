@@ -10,7 +10,7 @@ import { User } from '../../../shared/interfaces';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="h-screen h-[100dvh] w-full max-w-full flex items-center justify-center bg-dark-900 p-4 relative overflow-hidden select-none touch-none">
+    <div class="h-app w-full max-w-full flex items-center justify-center bg-dark-900 p-4 relative overflow-hidden select-none touch-none">
       <!-- Subtle ambient glow background -->
       <div class="absolute inset-0 overflow-hidden pointer-events-none">
         <div class="absolute -top-40 -left-40 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl"></div>

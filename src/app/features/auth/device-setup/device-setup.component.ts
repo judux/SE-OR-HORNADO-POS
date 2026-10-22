@@ -15,7 +15,7 @@ import { parseJoinLink } from '../../../core/tenant/tokens';
   standalone: true,
   imports: [GoogleSignInComponent, FormsModule],
   template: `
-    <div class="min-h-[100dvh] w-full flex items-center justify-center bg-dark-900 p-4">
+    <div class="min-h-app w-full flex items-center justify-center bg-dark-900 p-4">
       <div class="w-full max-w-sm">
         <div class="bg-dark-800/90 rounded-3xl p-7 border border-dark-700/80 shadow-2xl">
           @switch (tenant.account().kind) {

@@ -15,7 +15,7 @@ import { OrderItem, Product } from '../../../shared/interfaces';
   standalone: true,
   imports: [CommonModule, FormsModule],
   template: `
-    <div class="h-[calc(100vh-64px)] flex flex-col lg:flex-row gap-6 p-4 sm:p-6 bg-dark-50 dark:bg-dark-900 transition-colors duration-300">
+    <div class="h-full flex flex-col lg:flex-row gap-6 p-4 sm:p-6 pb-safe bg-dark-50 dark:bg-dark-900 transition-colors duration-300">
       
       <!-- Panel Izquierdo: Catálogo de Menú -->
       <div class="flex-1 flex flex-col min-h-0">
@@ -103,10 +103,10 @@ import { OrderItem, Product } from '../../../shared/interfaces';
 
       <!-- Panel Derecho: Carrito de Compras -->
       <div class="w-full lg:w-96 bg-white/90 dark:bg-dark-800/90 backdrop-blur-xl border border-dark-100 dark:border-dark-700/80 lg:rounded-3xl shadow-xl flex flex-col shrink-0
-                  fixed lg:relative inset-x-0 bottom-0 lg:bottom-auto h-[70vh] lg:h-full z-40 transition-transform duration-300 ease-out
+                  fixed lg:relative inset-x-0 bottom-0 lg:bottom-auto h-[70vh] lg:h-full z-40 sheet-safe transition-transform duration-300 ease-out
                   lg:translate-y-0"
            [class.translate-y-0]="isCartOpenMobile()"
-           [class.translate-y-full]="!isCartOpenMobile()">
+           [class.sheet-closed]="!isCartOpenMobile()">
         
         <!-- Toggle Flotante Móvil -->
         <button (click)="isCartOpenMobile.set(!isCartOpenMobile())" 

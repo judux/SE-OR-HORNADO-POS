@@ -10,7 +10,7 @@ import { Table } from '../../../shared/interfaces';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="h-full flex flex-col p-4 sm:p-6 max-w-7xl mx-auto w-full">
+    <div class="h-full overflow-y-auto flex flex-col p-4 sm:p-6 pb-safe max-w-7xl mx-auto w-full">
       <!-- Header interno Apple Style -->
       <div class="mb-6 bg-white/80 dark:bg-dark-800/80 backdrop-blur-xl p-5 sm:p-6 rounded-3xl shadow-sm border border-dark-100 dark:border-dark-700/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>

@@ -15,7 +15,7 @@ import { Solicitud } from '../../../shared/interfaces';
   standalone: true,
   imports: [FormsModule, GoogleSignInComponent],
   template: `
-    <div class="min-h-[100dvh] w-full flex items-center justify-center bg-dark-900 p-4">
+    <div class="min-h-app w-full flex items-center justify-center bg-dark-900 p-4">
       <div class="w-full max-w-sm">
         <div class="text-center mb-6">
           <span class="material-symbols-rounded text-5xl text-amber-400">storefront</span>

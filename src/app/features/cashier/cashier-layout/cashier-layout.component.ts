@@ -9,7 +9,7 @@ import { CashierDashboardComponent } from '../cashier-dashboard/cashier-dashboar
   standalone: true,
   imports: [CashierDashboardComponent],
   template: `
-    <div class="min-h-screen bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col">
+    <div class="h-app bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col overflow-hidden">
       <!-- Header Apple Bar -->
       <header class="h-[72px] bg-dark-800/90 dark:bg-dark-900/90 backdrop-blur-xl border-b border-dark-700/50 text-white px-6 flex items-center justify-between shadow-lg sticky top-0 z-50 shrink-0">
         <div class="flex items-center gap-4">
@@ -44,7 +44,7 @@ import { CashierDashboardComponent } from '../cashier-dashboard/cashier-dashboar
       </header>
 
       <!-- Content -->
-      <main class="flex-1 overflow-hidden">
+      <main class="flex-1 min-h-0 overflow-hidden">
         <app-cashier-dashboard></app-cashier-dashboard>
       </main>
     </div>

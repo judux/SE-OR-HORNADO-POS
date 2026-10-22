@@ -30,7 +30,8 @@ Blaze cobra por uso, pero mantiene las mismas cuotas gratis. Hay que poner alert
 - **Node 22 LTS** en lugar de Node 25.
 - **Texto de notas con poco contraste** en la ventana de producto del mesero.
 - **Proyecto de pruebas separado** (`-dev`) en Firebase, además del emulador local.
-- **Aviso de 'versión nueva' de la PWA:** en la prueba del 21 de octubre el Service Worker descargó la versión nueva sin mostrar el aviso. Recargar o reabrir la app sí la toma. Hay que revisarlo en un celular real; mientras tanto, después de cada despliegue se cierra y se vuelve a abrir la app.
+- **Actualizaciones de la app:** desde el 21 de octubre se aplican solas, sin aviso: al abrir la app o al pasar por una pantalla segura (PIN, bienvenida o plataforma), nunca en medio de un pedido (`core/pwa/app-update.service.ts`). Falta confirmarlo en un celular real.
+- **Zoom bloqueado** por pedido del dueño. Quien necesite letra más grande no puede ampliar; si alguien lo pide, se agrega un tamaño de letra configurable.
 - **Probar en celulares reales el ingreso con Google:** sobre todo en iPhone con la app instalada en la pantalla de inicio, donde las ventanas emergentes de Google a veces fallan. Si pasa, se cambia a `signInWithRedirect` con el dominio de autenticación propio.
 - **Proveedor Anónimo:** no se pudo comprobar en producción sin crear una cuenta. Se comprueba la primera vez que un mesero abra el enlace del restaurante.
 - **Lista de celulares vinculados por restaurante**, para que el admin pueda desvincular uno perdido. Hoy, generar un enlace nuevo solo evita celulares nuevos.

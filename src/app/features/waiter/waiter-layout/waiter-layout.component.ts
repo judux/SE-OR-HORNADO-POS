@@ -12,7 +12,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
   standalone: true,
   imports: [CommonModule, RouterOutlet],
   template: `
-    <div class="min-h-screen bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col">
+    <div class="h-app bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col overflow-hidden">
       <!-- Header Mobile / Desktop -->
       <header class="bg-dark-800/90 dark:bg-dark-900/90 backdrop-blur-xl border-b border-dark-700/50 text-white px-4 py-3 flex items-center justify-between shadow-lg z-50 shrink-0 sticky top-0">
         <div class="flex items-center gap-3">
@@ -55,7 +55,7 @@ import { ConfirmDialogService } from '../../../shared/components/confirm-dialog/
       </header>
 
       <!-- Content (Router Outlet) -->
-      <main class="flex-1 overflow-hidden relative">
+      <main class="flex-1 min-h-0 overflow-hidden relative">
         <router-outlet></router-outlet>
       </main>
     </div>

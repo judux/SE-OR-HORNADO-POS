@@ -11,7 +11,7 @@ import { AuthService } from '../../../core/auth/auth.service';
   selector: 'app-unirse',
   standalone: true,
   template: `
-    <div class="min-h-[100dvh] w-full flex items-center justify-center bg-dark-900 p-4">
+    <div class="min-h-app w-full flex items-center justify-center bg-dark-900 p-4">
       <div class="w-full max-w-sm bg-dark-800/90 rounded-3xl p-7 border border-dark-700/80 shadow-2xl text-center">
         @switch (status()) {
           @case ('trabajando') {

@@ -13,7 +13,7 @@ import { TableListComponent } from '../table-list/table-list.component';
   standalone: true,
   imports: [CommonModule, ProductListComponent, UserListComponent, AdminDashboardComponent, TableListComponent],
   template: `
-    <div class="h-screen h-[100dvh] w-full max-w-full bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col overflow-hidden">
+    <div class="h-app w-full max-w-full bg-dark-50 dark:bg-dark-900 transition-colors duration-300 flex flex-col overflow-hidden">
       <!-- Header Bar -->
       <header class="h-[72px] bg-dark-800/90 dark:bg-dark-900/90 backdrop-blur-xl border-b border-dark-700/50 text-white px-6 flex items-center justify-between shadow-lg sticky top-0 z-50 shrink-0">
         <div class="flex items-center gap-4">
@@ -96,7 +96,7 @@ import { TableListComponent } from '../table-list/table-list.component';
       </div>
 
       <!-- Content -->
-      <main class="flex-1 p-4 sm:p-6 overflow-auto">
+      <main class="flex-1 p-4 sm:p-6 pb-safe overflow-auto">
         <div class="max-w-6xl mx-auto">
           @if (activeTab() === 'dashboard') {
             <app-admin-dashboard />
